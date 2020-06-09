@@ -4,7 +4,7 @@ import { foaf } from 'rdf-namespaces';
 
 const btns = document.querySelectorAll(".btn");
 // Log out if user has been login on this machine
-auth.logout();
+// auth.logout();
 
 async function getWebId() {
 
@@ -15,7 +15,7 @@ async function getWebId() {
 
   let session = await auth.currentSession();
   if (session) {
-    logStatus.textContent = "Log Out";
+    // logStatus.textContent = "Log Out";
     headings.textContent = "Fetch Data from Solid (click 'Fetch' button)";
     fetch.textContent = "Fetch";
     return session.webId;
@@ -62,8 +62,19 @@ getWebId().then(webId => {
   webIdElement.textContent = "Your WebID is: "+ webId;
   const webIdDisplay = document.getElementById("webIdDisplay");
   webIdDisplay.style.display = "initial";
+  const btnLogout = document.getElementById("btn-logout");
+  btnLogout.textContent = "Log Out";
   if (webId){
     alert('Welcome, ' + webId);
+    btns.forEach(function(btn) {
+      btn.addEventListener("click", function(e){
+        e.preventDefault();
+        const styles = e.currentTarget.classList;
+        if (styles.contains('logout')) {
+          auth.logout().then(()=> alert('See you soon!'))
+        }
+      });
+    });
   }
 });
 
@@ -78,7 +89,7 @@ async function getTriplesObjects(fetchFrom, fetchSubject, fetchPredicate, option
     alert(err.message) ;
   }
   finally{
-    
+
     const fetchFromDoc = await fetchDocument(fetchFrom);
 
     if (option){
