@@ -1,6 +1,8 @@
 # Hello, SOLID
 
-Date: 17-04-2020
+Start Date: 17-05-2020
+
+Update Date: 13-06-2020
 
 Editor: Chang Sun
 
@@ -73,3 +75,8 @@ npm install --save-dev webpack-cli
 
    Next, in the folder, run `npx webpack` , then you will see a ***tsconfig.josn*** appears.
 
+5. Current functions:
+   1. login and logout 
+   2. Grant access to the application
+   3. Fetch public/accessible triples
+   4. Fetch objects directly

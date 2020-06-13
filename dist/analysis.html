@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chang First SOLID APP</title>
+    <!-- font awesome  -->
+    <link
+      rel="stylesheet"
+      href="./fontawesome-free-5.12.0-web/css/all.min.css"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Interface -->
+    <nav>
+      <div class="nav-center">
+        <!-- nav header -->
+        <div class="nav-header">
+          <h4>My FIRST SOLID APP</h4>
+          <button class="nav-toggle">
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
+        <ul class="links">
+          <li>
+            <a href="login.html"><span id="logStatus"></span></a>
+          </li>
+          <li>
+            <a href="fetch.html">Fetch</a>
+          </li>
+          <li>
+            <a href="create.html">Create</a>
+          </li>
+          <li>
+            <a href="participate.html">Participate</span></a>
+          </li>
+          <li>
+            <a href="request.html">Request</span></a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+    <!-- Main panel -->
+    <main>
+      <section class="container">
+        <!-- title -->
+        <div class='title'>
+          <h2>Analyze data from the request:</h2>
+        </div>
+        <!-- Fetched Text -->
+        <article class="review">
+          <div class="button-container">
+            <h4>Request URL: <input type="url" id="fetchRequest" placeholder="https://chang.inrupt.net/public/request.ttl#159194667389147214698177989534" size="35" style="font-size:18px;">
+              <button class='btn queryRequest'>Check</button>
+            </h4>
+            <button class='btn rglLearning'>Regular analysis!</button> 
+            <button class='btn ppLearning'>Privacy-preserving analysis!</button>
+            <br></br>
+            <p id="fetchedDoc">1. In regular analysis, participants will register their participation record in requester POD (request.ttl).
+              <br>Participants will give the requester viewer access to the data item/file. Before the request end date, 
+              <br>the requester can read/query the data item/file anytime for their analysis. In this case, the requester 
+              <br>knows who provide data by their SOLID ID. The participants can withdraw the permission, modify or 
+              <br>delete data which is used in the analysis before the request end date.
+              <br>
+              <br>2. In privacy-preserving analysis, participants will only give the requested data item(s) at the moment 
+              <br>when they click PARTICIPATE button. In this case, participant's SOLID ID or any identifiable information
+              <br>will NOT be saved. Therefore, participants cannot modify or delete the data once they give to the request. 
+            </p>
+          </div>
+        </article>
+      </section>
+    </main>
+    <script src="main.js"></script>
+  </body>
+</html>

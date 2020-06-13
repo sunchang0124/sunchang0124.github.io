@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chang First SOLID APP</title>
+    <!-- font awesome  -->
+    <link
+      rel="stylesheet"
+      href="./fontawesome-free-5.12.0-web/css/all.min.css"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Interface -->
+    <nav>
+      <div class="nav-center">
+        <!-- nav header -->
+        <div class="nav-header">
+          <h4>My FIRST SOLID APP</h4>
+          <button class="nav-toggle">
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
+        <ul class="links">
+          <li>
+            <a href="login.html"><span id="logStatus"></span></a>
+          </li>
+          <li>
+            <a href="fetch.html"><span id="fetch"></span></a>
+          </li>
+          <li>
+            <a href="create.html"><span id="createData"></span></a>
+          </li>
+          <li>
+            <a href="request.html">Request</span></a>
+          </li>
+          <li>
+            <a href="analysis.html">Analysis</span></a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+    <!-- Main panel -->
+    <main>
+      <section class="container">
+        <!-- title -->
+        <div class='title'>
+          <h3>Participate in the existing request:</h3>
+        </div>
+        <!-- Fetched Text -->
+        <article class="review">
+          <div class="button-container">
+            <h4>Request URL or User WebID: <input type="url" id="fetchRequest" placeholder="https://chang.inrupt.net/profile/card#me" size="40" style="font-size:18px;">
+              <button class='btn queryRequest'><span id="btn-queryRequest">Query Request</span></button>
+            </h4>
+            <p id="fetchedDoc">Request information will show here!</p>
+            <h4>Request URL: <input type="url" id="participateRequest" placeholder="https://chang.inrupt.net/public/request.ttl#15919039396476888408671370152" size="40" style="font-size:18px;">
+              <button class='btn participate'>Participate</button>
+            </h4>
+          </div>
+        </article>
+      </section>
+    </main>
+    <script src="main.js"></script>
+  </body>
+</html>
