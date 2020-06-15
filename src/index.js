@@ -1,18 +1,21 @@
+// First version was made on 08/06/2020 - 14/06/2020
 import auth from "solid-auth-client";
 import { fetchDocument, createDocument } from 'tripledoc';
 import { solid, schema, space, rdf, foaf} from 'rdf-namespaces';
 
+// query all button values
 const btns = document.querySelectorAll(".btn");
 
 // ****** Log In and Log Out *********//
 async function getWebId() {
 
+  // get elements from the html page
   const logStatus = document.getElementById("logStatus");
   const headings = document.getElementById("headings");
   const fetch = document.getElementById("fetch");
   const createData = document.getElementById("createData");
-  /* 1. Check if we've already got the user's WebID and access to their Pod: */
 
+  /* 1. Check if we've already got the user's WebID and access to their Pod: */
   let session = await auth.currentSession();
   if (session) {
     if (headings){headings.textContent = "Fetch Data from Solid (click 'Fetch' button)";}
@@ -23,13 +26,16 @@ async function getWebId() {
   else{
     logStatus.textContent = "Log In";
     if (headings){headings.textContent = "Login with Your Identity Provider: ";}
+
     /* 2. User has not logged in; ask for their Identity Provider: */
     const identityProvider = await getIdentityProvider();
+
     /* 3. Initiate the login process - this will redirect the user to their Identity Provider: */
     auth.login(identityProvider);
   } 
 }
 
+// login using inrupt or solid community identity providers 
 function getIdentityProvider() {
   const loading = document.getElementById("loading");
   if (loading){loading.style.display = "none";}
@@ -55,6 +61,7 @@ function getIdentityProvider() {
 }
 
 getWebId().then(webId => {
+  // **** Display on the login.html page *****
   const loading = document.getElementById("loading");
   if (loading){loading.style.display = "none";}
   const webIdElement = document.getElementById("webId");
@@ -63,8 +70,9 @@ getWebId().then(webId => {
   if (webIdDisplay){webIdDisplay.style.display = "initial";}
   const btnLogout = document.getElementById("btn-logout");
   if (btnLogout){btnLogout.textContent = "Log Out";}
+
+  // ***** Log out ***** //
   if (webId){
-    // alert('Welcome, ' + webId);
     btns.forEach(function(btn) {
       btn.addEventListener("click", function(e){
         e.preventDefault();
@@ -115,8 +123,7 @@ async function getTriplesObjects(fetchFrom, fetchSubject, fetchPredicate, option
 
 
 
-// ****** Setting up a data model *********//
-
+// ****** Setting up a creating data model *********//
 async function getNotesList(fetchProfile) {
 
   const webIdDoc = await fetchDocument(fetchProfile);
@@ -250,6 +257,7 @@ async function addRequest(fetchProfile, content, requestList) {
   // Set the Subject's `schema:text` to the actual note contents:
   // Store the date the note was created (i.e. now):
   
+  // Use the schema as you want 
   newDataElement.addRef(schema.creator, fetchProfile);
   if (content.purpose) {newDataElement.addString("http://schema.org/purpose", content.purpose);}
   if (content.data) {newDataElement.addRef(schema.DataFeedItem, content.data);}
@@ -289,6 +297,7 @@ async function getParticipateList(fetchProfile) {
     });
   }
   else{
+    // 3. If it exists, fetch the participation.ttl data
     for (let i=0;i<participateListEntryList.length;i++){
       const participateListRef = participateListEntryList[i].getRef(solid.instance);
       if (participateListRef){
@@ -321,13 +330,19 @@ async function initialiseParticipateList(profile, typeIndex) {
   // And finally, return our newly created (currently empty) notes Document:
   return participateList;
 }
-// Add participate to the file 
+
+
+// Add participation record to the file 
 async function addParticipation(fetchProfile, requestList, participateRequestId, participateList, collectionSize, endDate, privacyOption) {
+  // get the number of responses (participants)
   const responseSize = requestList.findSubjects(rdf.type, schema.JoinAction).length;
+  // the current date
   const responseDate = new Date(Date.now());
+  // get the webIDs of participants
   const responseUser = participateList.findSubjects(schema.participant, fetchProfile);
   let responseUserExisted = false;
 
+  // check if the participant are already in the response list
   for (let i =0;i<responseUser.length;i++){
     if (responseUser[i] === participateRequestId){
       const responseUserExisted = true;
@@ -360,11 +375,13 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
           const requestSuccess = await requestList.save([newRequestDataElement]);
         }
         
+        // if it is privacy-preserving analysis
         else if (privacyOption[0]){
           // add participate record to request.ttl
           const newRequestDataElement = requestList.addSubject();
           newRequestDataElement.addRef(rdf.type, schema.JoinAction);
           
+          // leave the requested data item directly without IDs
           newRequestDataElement.addInteger(privacyOption[1], privacyOption[2]);
           newRequestDataElement.addRef("http://schema.org/RsvpResponseYes", participateRequestId);
           newRequestDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
@@ -395,6 +412,7 @@ btns.forEach(function(btn) {
     e.preventDefault();
     const styles = e.currentTarget.classList;
 
+    // Fetch data from the files all triples or objects
     if (styles.contains('fetchObjects') || styles.contains('fetchTriples')) {
         const fetchFrom = document.getElementById("fetchFrom").value;
         const fetchSubject = document.getElementById("fetchSubject").value;
@@ -405,6 +423,7 @@ btns.forEach(function(btn) {
           const fetchedText = document.getElementById("fetchedText");
           fetchedText.setAttribute('style', 'white-space: pre;');
           
+          // print the triples as "subject" "predicate" "object"
           let printString = '';
           if (styles.contains('fetchTriples') || !fetchPredicate){
             for (let i = 0; i < getFetchedData.length; i++){
@@ -420,6 +439,7 @@ btns.forEach(function(btn) {
         });
     }
 
+    // check if the user has the data files already (button)
     else if (styles.contains('createModel')) {
       const fetchProfile = document.getElementById("fetchProfile").value;
       getNotesList(fetchProfile).then(fetchedNotesListRef => {
@@ -442,6 +462,7 @@ btns.forEach(function(btn) {
       });
     }
 
+    // Add data/triples to the data file (this can be changed as user wants)
     else if (styles.contains('addData')) {
       const fetchProfile = document.getElementById("fetchProfile").value;
       const age = document.getElementById("input_age").value;
@@ -459,7 +480,7 @@ btns.forEach(function(btn) {
       });
     }
 
-
+    // Check if the data request exists already
     else if (styles.contains('checkExtRequest')) {
       const fetchProfile = document.getElementById("fetchProfile").value;
       getRequestList(fetchProfile).then(fetchedRequestListRef => {
@@ -475,7 +496,9 @@ btns.forEach(function(btn) {
       });
     }
 
+    // Submit a new data request 
     else if (styles.contains('submitRequest')) {
+      // get the inputs from textbox from html
       const fetchProfile = document.getElementById("fetchProfile").value;
       const request_purpose = document.getElementById("input_purpose").value;
       const request_data = document.getElementById("input_data").value;
@@ -494,12 +517,14 @@ btns.forEach(function(btn) {
       });
     }
 
+    // query the existing request
     else if (styles.contains('queryRequest')) {
       const fetchRequest = document.getElementById("fetchRequest").value;
       const fetchedDoc = document.getElementById("fetchedDoc");
       fetchedDoc.setAttribute('style', 'white-space: pre;');
       let printString = '';
 
+      // if the user give the webID (will query all request of this person made)
       if (fetchRequest.slice(-15).includes('profile/card')){
         getRequestList(fetchRequest).then(fetchedRequestListRef=> {
           const getTriples = fetchedRequestListRef.getTriples();
@@ -510,6 +535,7 @@ btns.forEach(function(btn) {
         });
       }
       else{
+        // if the user give the request URL, (it will only query that single request)
         getTriplesObjects(fetchRequest, null, null, true).then(getTriples => {
           for (let i = 0; i < getTriples.length; i++){
             if (getTriples[i].subject.id === fetchRequest){
@@ -521,7 +547,7 @@ btns.forEach(function(btn) {
       }
     }
 
-
+    // Participate in a data request
     else if (styles.contains('participate')) {
       const fetchParticipateRequestId = document.getElementById("participateRequest").value;
       
@@ -532,6 +558,7 @@ btns.forEach(function(btn) {
           const requestModel = fetchedRequestListRef.getSubject(fetchParticipateRequestId).getString("http://schema.org/algorithm");
 
           getParticipateList(webId).then(fetchedParticipateListRef=> {
+            // if the data request is in the regular analysis mode
             if (requestModel.includes('Regular')){
               addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, collectionSize, endDate, requestModel.includes('Privacy')).then(success=> {
                 alert(success);
@@ -539,6 +566,7 @@ btns.forEach(function(btn) {
                 fetchedDoc.textContent = "Your participation is recorded. \n Please give requester (viewer) access to your data file.";
               });
             }
+            // if the data request is in the privacy-preserving mode
             else if (requestModel.includes('Privacy')){
               // Query the requested data item
               fetchRequestURL(fetchParticipateRequestId).then(fetchedParticipateRequest=>{
@@ -566,6 +594,7 @@ btns.forEach(function(btn) {
       });
     }
 
+    // conduct analysis button
     else if (styles.contains('rglLearning')) {
       const analyzeRequest = document.getElementById("fetchRequest").value;
       const fetchRequest = analyzeRequest.split("#")[0];
@@ -574,6 +603,8 @@ btns.forEach(function(btn) {
         // Need to test in the future 
         const collectionSize = fetchedRequestListRef.getSubject(analyzeRequest).getInteger(schema.collectionSize);
         const requestModel = fetchedRequestListRef.getSubject(analyzeRequest).getString("http://schema.org/algorithm");
+
+        // analyze data from regular request, 
         if (requestModel.includes("Regular")){
           const requestDataItem = fetchedRequestListRef.getSubject(analyzeRequest).getRef(schema.DataFeedItem);
           const getRequestTriples = fetchedRequestListRef.getTriples();
@@ -623,7 +654,7 @@ btns.forEach(function(btn) {
       }).catch(()=> {alert(err.message);});
     }
 
-
+    // analyze data from privacy-preserving data request
     else if (styles.contains('ppLearning')) {
       const analyzeRequest = document.getElementById("fetchRequest").value;
       const fetchRequest = analyzeRequest.split("#")[0];
