@@ -10,7 +10,7 @@ Abstract: This repository shows how to build a SOLID application to fetch/create
 ***
 ### What can this SOLID App do? ###
 ### How does it look like? ###
-You can try the [SOLID App](https://sunchang0124.github.io/dist/homeapage.html) by yourself. The following functions are implemented in my Solid app so far. You can watch [this video](https://youtu.be/oVFDoKmbpUg) to get the first impression.
+You can try the [SOLID App](https://sunchang0124.github.io/dist/homepage.html) by yourself. The following functions are implemented in my Solid app so far. You can watch [this video](https://youtu.be/oVFDoKmbpUg) to get the first impression.
 
 You can also jump to the function which you are interested in particular:
 1. [Introduction](https://youtu.be/oVFDoKmbpUg)
