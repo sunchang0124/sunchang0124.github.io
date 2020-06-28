@@ -30,3 +30,11 @@ Please go to [Wiki page](https://github.com/sunchang0124/sunchang0124.github.io/
 1. [What is SOLID?](https://github.com/sunchang0124/sunchang0124.github.io/wiki/1.-About-SOLID)
 2. [Get started with SOLID](https://github.com/sunchang0124/sunchang0124.github.io/wiki/2.-Get-Started)
 3. [Build your first SOLID App (without Web App experience)](https://github.com/sunchang0124/sunchang0124.github.io/wiki/3.-Background-Learning)
+
+
+
+### Development Updates
+
+**15-06-2020 Update:** Participants grant the requester viewer access automatically when they participate in the data request (by editting the acl file). But in this case, users need to give the application "Control" right when they authorize the application. 
+
+**16-06-2020 Update:** Add valid period option for users when they participate in some data request

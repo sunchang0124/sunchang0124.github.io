@@ -1,45 +1,32 @@
 // First version was made on 08/06/2020 - 14/06/2020
 import auth from "solid-auth-client";
 import { fetchDocument, createDocument } from 'tripledoc';
-import { solid, schema, space, rdf, foaf} from 'rdf-namespaces';
+import { solid, schema, space, rdf, foaf, acl, skos, dc, dct, vcard} from 'rdf-namespaces';
 
 // query all button values
-const btns = document.querySelectorAll(".btn");
+const btns = document.querySelectorAll(".listen.button");
+const btn_login = document.querySelectorAll(".login.button");
+const searchIcons= document.querySelectorAll(".link");
 
 // ****** Log In and Log Out *********//
 async function getWebId() {
 
-  // get elements from the html page
-  const logStatus = document.getElementById("logStatus");
-  const headings = document.getElementById("headings");
-  const fetch = document.getElementById("fetch");
-  const createData = document.getElementById("createData");
-
   /* 1. Check if we've already got the user's WebID and access to their Pod: */
   let session = await auth.currentSession();
   if (session) {
-    if (headings){headings.textContent = "Fetch Data from Solid (click 'Fetch' button)";}
-    if (fetch){fetch.textContent = "Fetch";}
-    if (createData){createData.textContent = "Create";}
     return session.webId;
   }
   else{
-    logStatus.textContent = "Log In";
-    if (headings){headings.textContent = "Login with Your Identity Provider: ";}
-
     /* 2. User has not logged in; ask for their Identity Provider: */
     const identityProvider = await getIdentityProvider();
 
     /* 3. Initiate the login process - this will redirect the user to their Identity Provider: */
     auth.login(identityProvider);
-  } 
+  }
 }
 
 // login using inrupt or solid community identity providers 
 function getIdentityProvider() {
-  const loading = document.getElementById("loading");
-  if (loading){loading.style.display = "none";}
-  
   const idpPromise = new Promise((resolve, _reject) => {
     btns.forEach(function(btn) {
       btn.addEventListener("click", function(e){
@@ -61,29 +48,34 @@ function getIdentityProvider() {
 }
 
 getWebId().then(webId => {
-  // **** Display on the login.html page *****
-  const loading = document.getElementById("loading");
-  if (loading){loading.style.display = "none";}
-  const webIdElement = document.getElementById("webId");
-  if (webIdElement){webIdElement.textContent = "Your WebID is: "+ webId;}
-  const webIdDisplay = document.getElementById("webIdDisplay");
-  if (webIdDisplay){webIdDisplay.style.display = "initial";}
-  const btnLogout = document.getElementById("btn-logout");
-  if (btnLogout){btnLogout.textContent = "Log Out";}
 
-  // ***** Log out ***** //
+  const homeMessageElement = document.getElementById("homeMessage");
   if (webId){
-    btns.forEach(function(btn) {
+    if (window.location.pathname == "/dist/login.html"){window.location.href = "homepage.html";}
+    if (homeMessageElement){homeMessageElement.textContent = "Welcome! "+ webId;}
+
+    document.getElementById("logStatusPage").textContent = "Log Out";
+    document.getElementById("logStatusFollowing").textContent = "Log Out";
+
+    // ***** Log out ***** //
+    btn_login.forEach(function(btn) {
       btn.addEventListener("click", function(e){
         e.preventDefault();
         const styles = e.currentTarget.classList;
-        if (styles.contains('logout')) {
+        if (styles.contains('login')) {
           auth.logout().then(()=> alert('See you soon!'))
+          window.location.href = "homepage.html";
         }
       });
     });
   }
+  else{
+    if (homeMessageElement){homeMessageElement.textContent = "Contribute your data in SOLID to research with full control and privacy preserved."}
+    document.getElementById("logStatusPage").textContent = "Log In";
+    document.getElementById("logStatusFollowing").textContent = "Log In";
+  }
 });
+
 
 
 // ****** Fetch data from Pod *********//
@@ -122,26 +114,64 @@ async function getTriplesObjects(fetchFrom, fetchSubject, fetchPredicate, option
 }
 
 
+// ****** Generate table *********//
+function generateTableHead(table, data) {
+  let thead = table.createTHead();
+  let row = thead.insertRow();
+  for (let key of data) {
+    let th = document.createElement("th");
+    let text = document.createTextNode(key);
+    th.appendChild(text);
+    row.appendChild(th);
+  }
+}
+
+function generateTable(table, data) {
+  for (let element of data) {
+    let row = table.insertRow();
+    for (let key in element) {
+      let cell = row.insertCell();
+      let text = document.createTextNode(element[key]);
+      cell.appendChild(text);
+    }
+  }
+}
+
+function printTable(table, tripleResults, append) {
+  let data = Object.keys(tripleResults[0]);
+  if (!append){
+    while(table.hasChildNodes()){table.removeChild(table.firstChild);}
+  }
+  if (!table.hasChildNodes()){
+    generateTableHead(table, data);
+  }
+  generateTable(table, tripleResults);
+}
+
 
 // ****** Setting up a creating data model *********//
-async function getNotesList(fetchProfile) {
-
+async function getNotesList(profileHead, fileLocation, fileName) {
+  const fetchProfile = profileHead + "profile/card#me";
   const webIdDoc = await fetchDocument(fetchProfile);
   const profile = webIdDoc.getSubject(fetchProfile);
 
   /* 1. Check if a Document tracking our notes already exists. */
-  const privateTypeIndexRef = profile.getRef(solid.privateTypeIndex);
-  const privateTypeIndex = await fetchDocument(privateTypeIndexRef); 
-  const notesListEntry = privateTypeIndex.findSubject(solid.forClass, schema.dataFeedElement);//schema.TextDigitalDocument
+  if (fileLocation.includes("public")){
+    var pubPriTypeIndexRef = profile.getRef(solid.publicTypeIndex);
+    var predicateIndex =  "public/" + fileName;
+  }
+  else if (fileLocation.includes("private")){
+    var pubPriTypeIndexRef = profile.getRef(solid.privateTypeIndex);
+    var predicateIndex =  "private/" + fileName;
+  }
+
+  const pubPriTypeIndex = await fetchDocument(pubPriTypeIndexRef); 
+  const notesListEntry = pubPriTypeIndex.findSubject(solid.instance, profileHead+predicateIndex);//schema.TextDigitalDocument
 
   /* 2. If it doesn't exist, create it. */
   if (notesListEntry === null) {
     // We will define this function later:
-    return initialiseNotesList(profile, privateTypeIndex).then(()=> alert("New file 'private/healthcondition.ttl'is created!"));
-  }
-  else{
-    const createFetch = document.getElementById("btn-createFetch");
-    createFetch.textContent = "Fetch Data";
+    return initialiseNotesList(profile, pubPriTypeIndex, predicateIndex).then(()=> alert("New file "+predicateIndex+" is created!"));
   }
 
   /* 3. If it does exist, fetch that Document. */
@@ -151,12 +181,12 @@ async function getNotesList(fetchProfile) {
 }
 
 
-async function initialiseNotesList(profile, typeIndex) {
+async function initialiseNotesList(profile, typeIndex, predicateIndex) {
   // Get the root URL of the user's Pod:
   const storage = profile.getRef(space.storage);
 
   // Decide at what URL within the user's Pod the new Document should be stored:
-  const notesListRef = storage + 'private/healthcondition.ttl';
+  const notesListRef = storage + predicateIndex;
 
   // Create the new Document:
   const notesList = createDocument(notesListRef);
@@ -174,8 +204,8 @@ async function initialiseNotesList(profile, typeIndex) {
 }
 
 // Add note in the file 
-async function addNote(fetchProfile, content, notesList) {
-
+async function addNote(profileHead, addedTableDict, notesList) {
+  const fetchProfile = profileHead + "profile/card#me";
   // Initialise the new Subject:
   const newDataElement = notesList.addSubject();
   // Indicate that the Subject is a schema:dataFeedElement:
@@ -185,13 +215,31 @@ async function addNote(fetchProfile, content, notesList) {
   newDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
   
   newDataElement.addRef(schema.creator, fetchProfile);
-  if (content.age) {newDataElement.addInteger(foaf.age, parseInt(content.age));}
-  if (content.height) {newDataElement.addDecimal(schema.height, parseFloat(content.height));}
-  if (content.weight) {newDataElement.addDecimal(schema.weight, parseFloat(content.weight));}
-  if (content.diabetes) {newDataElement.addRef('http://purl.bioontology.org/ontology/SNOMEDCT/73211009', 'http://purl.bioontology.org/ontology/SNOMEDCT/'+content.diabetes);}
-  newDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
 
+  for (let i=0; i<addedTableDict.length; i++){
+    let predicateItem = addedTableDict[i].Predicate
+    let objectItem = addedTableDict[i].Object
+    if (Number(objectItem)){
+      if (Number(objectItem) === parseInt(objectItem, 10)){
+        newDataElement.addInteger(predicateItem, parseInt(objectItem));
+      }
+      else{
+        newDataElement.addDecimal(predicateItem, parseFloat(objectItem));
+      }
+    }
+    else if (objectItem.includes("http://") || objectItem.includes("https://")){
+      newDataElement.addRef(predicateItem, objectItem);
+    }
+    else {
+      try{
+        newDataElement.addDateTime(predicateItem, new Date(objectItem));
+      }catch{
+        newDataElement.addString(predicateItem, objectItem);
+      }
+    };
+  }
   const success = await notesList.save([newDataElement]);
+
 
   return success;
 }
@@ -210,7 +258,6 @@ async function getRequestList(fetchProfile) {
   const publicTypeIndex = await fetchDocument(publicTypeIndexRef); 
   const requestListEntryList = publicTypeIndex.findSubjects(solid.forClass, "http://schema.org/AskAction");//schema.TextDigitalDocument
 
-  /* 2. If it doesn't exist, create it. */
   if (requestListEntryList.length > 0) {
     for (let i=0;i<requestListEntryList.length;i++){
       const requestListRef = requestListEntryList[i].getRef(solid.instance);
@@ -220,8 +267,10 @@ async function getRequestList(fetchProfile) {
         }
       }
     }
-  }
-  return initialiseRequestList(profile, publicTypeIndex).then(()=> alert("New file 'public/request.ttl'is created!"));
+  }/* 2. If it doesn't exist, create it. */
+  return initialiseRequestList(profile, publicTypeIndex).then(()=> {
+    alert("New file 'public/request.ttl'is created!")
+  });
 }
 
 async function initialiseRequestList(profile, typeIndex) {
@@ -243,6 +292,8 @@ async function initialiseRequestList(profile, typeIndex) {
   await typeIndex.save([ typeRegistration ]);
 
   // And finally, return our newly created (currently empty) notes Document:
+  const firstRequestMessage = document.getElementById("firstRequestMessage");
+  firstRequestMessage.textContent = "New file 'public/request.ttl' is created and initialized in your Solid Pod. -> "+ storage + 'public/request.ttl';
   return requestList;
 }
 
@@ -260,8 +311,12 @@ async function addRequest(fetchProfile, content, requestList) {
   // Use the schema as you want 
   newDataElement.addRef(schema.creator, fetchProfile);
   if (content.purpose) {newDataElement.addString("http://schema.org/purpose", content.purpose);}
-  if (content.data) {newDataElement.addRef(schema.DataFeedItem, content.data);}
-  if (content.period) {newDataElement.addDateTime(schema.endDate, new Date(content.period));}
+  if (content.data) {
+    for (let i=0; i<content.data.length; i++){
+      newDataElement.addRef(schema.DataFeedItem, content.data[i]);
+    } 
+  }
+  if (content.period) {newDataElement.addDateTime(schema.endDate, content.period);}
   if (content.numInstance) {newDataElement.addInteger("http://schema.org/collectionSize", parseInt(content.numInstance));}
   if (content.model) {newDataElement.addString("http://schema.org/algorithm", content.model);}
   newDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
@@ -333,7 +388,7 @@ async function initialiseParticipateList(profile, typeIndex) {
 
 
 // Add participation record to the file 
-async function addParticipation(fetchProfile, requestList, participateRequestId, participateList, collectionSize, endDate, privacyOption) {
+async function addParticipation(fetchProfile, requestList, participateRequestId, participateList, AccessControlList, collectionSize, endDate, participate_period, privacyOption) {
   // get the number of responses (participants)
   const responseSize = requestList.findSubjects(rdf.type, schema.JoinAction).length;
   // the current date
@@ -342,9 +397,9 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
   const responseUser = participateList.findSubjects(schema.participant, fetchProfile);
   let responseUserExisted = false;
 
-  // check if the participant are already in the response list
+  // check if the participant already responded to the data request
   for (let i =0;i<responseUser.length;i++){
-    if (responseUser[i] === participateRequestId){
+    if (responseUser[i] == participateRequestId){
       const responseUserExisted = true;
     }
   }
@@ -352,58 +407,301 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
   if (responseSize <= collectionSize){
     if (responseDate <= endDate){ 
       if (!responseUserExisted){
-        if (!privacyOption){
-          // add participate record to participation.ttl
-          const newParticipateDataElement = participateList.addSubject();
-          newParticipateDataElement.addRef(rdf.type, schema.JoinAction);
 
-          newParticipateDataElement.addRef(schema.participant, fetchProfile);
-          newParticipateDataElement.addRef("http://schema.org/RsvpResponseYes", participateRequestId);
-          newParticipateDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
-      
-          const participateSuccess = await participateList.save([newParticipateDataElement]);
+        if (participate_period >= new Date(Date.now())){
+          if (!privacyOption){
+            // add participate record to participation.ttl
+            const newParticipateDataElement = participateList.addSubject();
+            newParticipateDataElement.addRef(rdf.type, schema.JoinAction);
 
-          
-          // add participate record to request.ttl
-          const newRequestDataElement = requestList.addSubject();
-          newRequestDataElement.addRef(rdf.type, schema.JoinAction);
-          
-          newRequestDataElement.addRef(schema.participant, fetchProfile);
-          newRequestDataElement.addRef("http://schema.org/RsvpResponseYes", participateRequestId);
-          newRequestDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
-      
-          const requestSuccess = await requestList.save([newRequestDataElement]);
-        }
+            newParticipateDataElement.addRef(schema.participant, fetchProfile);
+            newParticipateDataElement.addRef("http://schema.org/RsvpResponseYes", participateRequestId);
+            newParticipateDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
+            newParticipateDataElement.addDateTime(schema.endDate, participate_period);
+            
         
-        // if it is privacy-preserving analysis
-        else if (privacyOption[0]){
-          // add participate record to request.ttl
-          const newRequestDataElement = requestList.addSubject();
-          newRequestDataElement.addRef(rdf.type, schema.JoinAction);
+            const participateSuccess = await participateList.save([newParticipateDataElement]);
+
+            // add viewer access to the requester automatically (Users have to give control access to the application)
+            const newRequestAccessControl= AccessControlList.addSubject("Read");
+            const responserWebId = requestList.getSubject(participateRequestId).getRef(schema.creator);
+
+            newRequestAccessControl.addRef(rdf.type, acl.Authorization);
+            newRequestAccessControl.addRef(acl.accessTo, "healthcondition.ttl");
+            newRequestAccessControl.addRef(acl.agent, responserWebId);
+            newRequestAccessControl.addRef(acl.mode, acl.Read);
+            newRequestAccessControl.addDateTime(schema.endDate, participate_period);
+        
+            const AccessControlSuccess = await AccessControlList.save([newRequestAccessControl]);
+
+
+            
+            // add participate record to request.ttl
+            const newRequestDataElement = requestList.addSubject();
+            newRequestDataElement.addRef(rdf.type, schema.JoinAction);
+            
+            newRequestDataElement.addRef(schema.participant, fetchProfile);
+            newRequestDataElement.addRef("http://schema.org/RsvpResponseYes", participateRequestId);
+            newRequestDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
+            newRequestDataElement.addDateTime(schema.endDate, participate_period);
+        
+            const requestSuccess = await requestList.save([newRequestDataElement]);
+          }
           
-          // leave the requested data item directly without IDs
-          newRequestDataElement.addInteger(privacyOption[1], privacyOption[2]);
-          newRequestDataElement.addRef("http://schema.org/RsvpResponseYes", participateRequestId);
-          newRequestDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
-      
-          const requestSuccess = await requestList.save([newRequestDataElement]);
+          // if it is privacy-preserving analysis
+          else if (privacyOption[0]){
+            // add participate record to request.ttl
+            const newRequestDataElement = requestList.addSubject();
+            newRequestDataElement.addRef(rdf.type, schema.JoinAction);
+            
+            // leave the requested data item directly without IDs
+            newRequestDataElement.addInteger(privacyOption[1], privacyOption[2]);
+            newRequestDataElement.addRef("http://schema.org/RsvpResponseYes", participateRequestId);
+            newRequestDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
+        
+            const requestSuccess = await requestList.save([newRequestDataElement]);
 
-          // add participate record to participation.ttl
-          const newParticipateDataElement = participateList.addSubject();
-          newParticipateDataElement.addRef(rdf.type, schema.JoinAction);
+            // add participate record to participation.ttl
+            const newParticipateDataElement = participateList.addSubject();
+            newParticipateDataElement.addRef(rdf.type, schema.JoinAction);
 
-          newParticipateDataElement.addRef(schema.participant, fetchProfile);
-          newParticipateDataElement.addRef("http://schema.org/RsvpResponseYes", participateRequestId);
-          newParticipateDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
-      
-          const participateSuccess = await participateList.save([newParticipateDataElement]);
-        }
+            newParticipateDataElement.addRef(schema.participant, fetchProfile);
+            newParticipateDataElement.addRef("http://schema.org/RsvpResponseYes", participateRequestId);
+            newParticipateDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
+        
+            const participateSuccess = await participateList.save([newParticipateDataElement]);
+          }
 
-        return "Success!";
+          return "Success!";
+        }else{alert("Participation end date has to be later than today.")}
       }else{alert("You are in the participates list already.")}
     }else{alert("Sorry, request end date has expired.")}
   }else{alert("Sorry, request has enough participants.")}
 }
+
+function searchTermsNamespaces(resultObj, addTripleSearch, nameSpace){
+  const getAllKeys = Object.keys(nameSpace);
+      getAllKeys.forEach(function(keyName) {
+        if (keyName.indexOf(addTripleSearch) !== -1) {
+          resultObj.push({Text:keyName, FoundURI:nameSpace[keyName]})
+        }
+      });
+  return resultObj
+}
+
+/**************************
+ * Get all request for cards *
+ **************************/
+function writeAllRequest(profile, requestTriples, fetchRequest){
+  let requestContent = Object();  
+  let dataElementList = []
+  
+  for (let i = 0; i < requestTriples.length; i++){
+    if (requestTriples[i].subject.id === fetchRequest){
+      requestContent.webid = profile.asRef();
+      requestContent.name = profile.getString(foaf.name);
+      requestContent.organization = profile.getString("http://www.w3.org/2006/vcard/ns#organization-name");
+      requestContent.image = profile.getRef(vcard.hasPhoto);
+
+      requestContent.url = fetchRequest;
+      if (requestTriples[i].predicate.id === "http://schema.org/purpose"){
+        requestContent.purpose = "Purpose: "+ requestTriples[i].object.value;}
+      if (requestTriples[i].predicate.id === schema.endDate){
+        requestContent.period = "End date: " + requestTriples[i].object.value;}
+      if (requestTriples[i].predicate.id === "http://schema.org/algorithm"){
+        requestContent.analysis = "Analysis: " + requestTriples[i].object.value;}
+      if (requestTriples[i].predicate.id === "http://schema.org/DataFeedItem"){
+        dataElementList.push(requestTriples[i].object.value);
+    }
+  }
+  requestContent.dataElement = "Requested data: "+ dataElementList;}
+  return requestContent
+}
+  
+/**************************
+ * Generate request cards *
+ **************************/
+async function generateCards(requestContentList, userRole){
+    
+  var cleanContainer = document.getElementById("Container");
+  cleanContainer.innerHTML = "";
+  
+  const div_cardsContainer = document.createElement("div");
+  div_cardsContainer.className = "ui cards";
+  div_cardsContainer.id = "cardsContainer";
+  document.getElementById('Container').appendChild(div_cardsContainer);
+
+  for(var i=0; i < requestContentList.length; i++){
+
+    // Generate request cards
+    const div_card = document.createElement("div");
+    div_card.className = "card";
+    div_card.id = "cardID"+i.toString();
+    document.getElementById('cardsContainer').appendChild(div_card);
+  
+    const div_content = document.createElement("a");
+    div_content.href = requestContentList[i].url; 
+    div_content.className = "content";
+    div_content.id = "contentID"+i.toString();
+    document.getElementById('cardID'+i.toString()).appendChild(div_content);
+  
+    const div_img = document.createElement("img");
+    div_img.className = "right floated mini ui image";
+    div_img.src = requestContentList[i].image; //requestContentList[i].image; //
+    div_img.id = "imgID"+i.toString();
+    document.getElementById('contentID'+i.toString()).appendChild(div_img);
+  
+    const div_header = document.createElement("div");
+    div_header.className = "header";
+    div_header.id = "headerID"+i.toString();
+    div_header.textContent = requestContentList[i].name; //"Chang Sun"
+    document.getElementById('contentID'+i.toString()).appendChild(div_header);
+  
+    const div_meta = document.createElement("div");
+    div_meta.className = "meta";
+    div_meta.id = "metaID"+i.toString();
+    div_meta.textContent = requestContentList[i].organization; //"IDS";
+    document.getElementById('contentID'+i.toString()).appendChild(div_meta);
+  
+    const div_description = document.createElement("div");
+    div_description.className = "description";
+    div_description.id = "descriptionID"+i.toString();
+    div_description.textContent = requestContentList[i].purpose; //"Purpose";
+    document.getElementById('contentID'+i.toString()).appendChild(div_description);
+
+    const div_dataElement = document.createElement("div");
+    div_dataElement.style = 'word-wrap: break-word';
+    div_dataElement.className = "description";
+    div_dataElement.id = "dataElementID"+i.toString();
+    div_dataElement.textContent = requestContentList[i].dataElement; //"Purpose";
+    document.getElementById('contentID'+i.toString()).appendChild(div_dataElement);
+
+    const div_period = document.createElement("div");
+    div_period.className = "description";
+    div_period.id = "periodID"+i.toString();
+    div_period.textContent = requestContentList[i].period; //"period";
+    document.getElementById('contentID'+i.toString()).appendChild(div_period);
+
+    const div_analysis = document.createElement("div");
+    div_analysis.className = "description";
+    div_analysis.id = "analysisID"+i.toString();
+    div_analysis.textContent = requestContentList[i].analysis; //"period";
+    document.getElementById('contentID'+i.toString()).appendChild(div_analysis);
+
+    const div_extra = document.createElement("div");
+    div_extra.className = "extra content";
+    div_extra.id = "extraID"+i.toString();
+    document.getElementById('cardID'+i.toString()).appendChild(div_extra);
+
+    const div_forDate = document.createElement("div");
+    div_forDate.className = "ui transparent input";
+    div_forDate.id = "forDate"+i.toString();
+    document.getElementById('extraID'+i.toString()).appendChild(div_forDate);
+
+    if (userRole === "participant"){
+      const div_untilDate = document.createElement("input");
+      div_untilDate.type = "date";
+      div_untilDate.id = "untilDate"+i.toString();
+      document.getElementById("forDate"+i.toString()).appendChild(div_untilDate);
+    }
+  
+    const div_buttons = document.createElement("div");
+    div_buttons.className = "ui two buttons";
+    div_buttons.id = "buttonsID"+i.toString();
+    document.getElementById('extraID'+i.toString()).appendChild(div_buttons);
+  
+    if (userRole === "participant"){
+      const div_redButton = document.createElement("button");
+      div_redButton.className = "ui basic red Decline button answer index_"+i.toString();
+      div_redButton.id = "redButtonID"+i.toString();
+      div_redButton.textContent = "Decline";
+      document.getElementById('buttonsID'+i.toString()).appendChild(div_redButton);
+    
+      const div_greenButton = document.createElement("button");
+      div_greenButton.className = "ui basic green Approve button answer index_"+i.toString();
+      div_greenButton.id = "greenButtonID"+i.toString();
+      div_greenButton.textContent = "Approve";
+      document.getElementById('buttonsID'+i.toString()).appendChild(div_greenButton);
+    }
+    else if (userRole === "requester"){
+      const div_regularButton = document.createElement("button");
+      div_regularButton.className = "ui blue rglLearning button answer index_"+i.toString();
+      div_regularButton.id = "regularButtonID"+i.toString();
+      div_regularButton.textContent = "Regular analysis";
+      document.getElementById('buttonsID'+i.toString()).appendChild(div_regularButton);
+    
+      const div_privacyButton = document.createElement("button");
+      div_privacyButton.className = "ui green ppLearning button answer index_"+i.toString();
+      div_privacyButton.id = "privacyButtonID"+i.toString();
+      div_privacyButton.textContent = "Secure analysis";
+      document.getElementById('buttonsID'+i.toString()).appendChild(div_privacyButton);
+    }
+    
+  };
+  return requestContentList
+};
+
+async function plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, option, userRole){
+  var requestContentList = [];
+  const profile = webIdDoc.getSubject(profileWebID);
+
+
+  if (option === "fromWebID"){
+    for (let i=0; i<findAllSubjects.length; i++){
+      requestContentList.push(writeAllRequest(profile, findAllSubjects[i].getTriples(), findAllSubjects[i].asRef()));
+    }
+  }else{
+      requestContentList.push(writeAllRequest(profile, findAllSubjects, option));
+  }
+
+  requestContentList = await generateCards(requestContentList, userRole);
+
+  const answer_btns = document.querySelectorAll(".answer.button");
+  const outcome = [answer_btns, requestContentList]
+
+  return outcome
+}
+
+
+
+
+// Namespace Suggestions
+searchIcons.forEach(function(each_search){
+  each_search.addEventListener("click", function(e){
+    e.preventDefault();
+    const styles = e.currentTarget.classList;
+    const tables = document.querySelectorAll(".table");
+
+    if (styles.contains('predicateSuggestion')){
+      var addTripleSearch = document.getElementById("addTriplePredicate").value;
+    }else if (styles.contains('objectSuggestion')){
+      var addTripleSearch = document.getElementById("addTripleObject").value;
+    }
+
+    // GET the URL from the text user put
+    var resultObj = [];
+    if (addTripleSearch){
+      let namespaceList = [schema, foaf, rdf, skos, dc, dct]
+      for (let i=0; i<namespaceList.length; i++){
+        let nameSpace = namespaceList[i];
+        resultObj = searchTermsNamespaces(resultObj, addTripleSearch, nameSpace);
+      }
+    }
+
+    if (resultObj.length==0){
+      resultObj.push({Text:addTripleSearch, FoundURI:"Sorry, we couldn't find matched identifiers(URI)."})
+    }
+
+    tables.forEach(function(table){
+      if (table.classList.contains("searchTable")){
+        printTable(table, resultObj, false);
+      }
+    });
+
+  });
+});
+
+
 
 
 // Button Choice 
@@ -414,291 +712,413 @@ btns.forEach(function(btn) {
 
     // Fetch data from the files all triples or objects
     if (styles.contains('fetchObjects') || styles.contains('fetchTriples')) {
-        const fetchFrom = document.getElementById("fetchFrom").value;
-        const fetchSubject = document.getElementById("fetchSubject").value;
-        const fetchPredicate = document.getElementById("fetchPredicate").value;
-        const getTriplesOption = styles.contains('fetchTriples');
-        
-        getTriplesObjects(fetchFrom, fetchSubject, fetchPredicate, getTriplesOption).then(getFetchedData => {
-          const fetchedText = document.getElementById("fetchedText");
-          fetchedText.setAttribute('style', 'white-space: pre;');
-          
-          // print the triples as "subject" "predicate" "object"
-          let printString = '';
-          if (styles.contains('fetchTriples') || !fetchPredicate){
-            for (let i = 0; i < getFetchedData.length; i++){
-              printString += getFetchedData[i].subject.id + '\r\t' + getFetchedData[i].predicate.id + '\r\t' + getFetchedData[i].object.id + '. \r\n' ;
+
+      if (styles.contains('fetchTriples')){
+        var fetchFrom = document.getElementById("fetchFromTriples").value;
+      }
+      else{
+        var fetchFrom = document.getElementById("fetchFromObjects").value;
+      } 
+
+      const fetchSubject = document.getElementById("fetchSubject").value;
+      const fetchPredicate = document.getElementById("fetchPredicate").value;
+      const getTriplesOption = styles.contains('fetchTriples');
+      
+      getTriplesObjects(fetchFrom, fetchSubject, fetchPredicate, getTriplesOption).then(getFetchedData => {
+        const tables = document.querySelectorAll(".table");
+
+        // print the triples as "subject" "predicate" "object"
+        let tripleResults = [];
+        if (styles.contains('fetchTriples')){
+          for (let i = 0; i < getFetchedData.length; i++){
+            tripleResults.push({Subject:getFetchedData[i].subject.id, Predicate:getFetchedData[i].predicate.id, Object:getFetchedData[i].object.id}) 
+          }
+          tables.forEach(function(table){
+            if (table.classList.contains("triples")){
+              printTable(table, tripleResults, false);
+            }
+          });
+        }
+        else if (styles.contains('fetchObjects') && fetchSubject){
+          for (let i = 0; i < getFetchedData.length; i++){
+            if (fetchPredicate){
+              tripleResults.push({Object:getFetchedData[i]})
+            }
+            else{
+              tripleResults.push({Predicate:getFetchedData[i].predicate.id, Object:getFetchedData[i].object.id}) 
             }
           }
-          else if (!styles.contains('fetchTriples') && fetchSubject && fetchPredicate){
-            for (let i = 0; i < getFetchedData.length; i++){
-              printString += getFetchedData[i] + '\r\n' ;
+          tables.forEach(function(table){
+            if (table.classList.contains("objects")){
+              printTable(table, tripleResults, false);
             }
-          }
-          fetchedText.textContent = printString;
-        });
+          });
+        }
+      });
     }
 
     // check if the user has the data files already (button)
     else if (styles.contains('createModel')) {
-      const fetchProfile = document.getElementById("fetchProfile").value;
-      getNotesList(fetchProfile).then(fetchedNotesListRef => {
-        const getTriples = fetchedNotesListRef.getTriples();
-        const fetchedDoc = document.getElementById("fetchedDoc");
-        fetchedDoc.setAttribute('style', 'white-space: pre;');
+      const fileLocation = document.getElementById("fileLocation").value;
+      const profileHead = "https://" + fileLocation.substring(fileLocation.lastIndexOf("https://") + 8, fileLocation.lastIndexOf("/")) +"/";
+      const fileName = document.getElementById("fileName").value;
+      const tables = document.querySelectorAll(".table");
 
-        let printString = '';
+      getNotesList(profileHead, fileLocation, fileName).then(fetchedNotesListRef => {
+        var getTriples = fetchedNotesListRef.getTriples();
+        const fetchedDoc = document.getElementById("createMessage");
+        const table = document.querySelector("table");
+
+        let tripleResults = [];
         for (let i = 0; i < getTriples.length; i++){
-          printString += getTriples[i].subject.id + '\r\t' + getTriples[i].predicate.id + '\r\t' + getTriples[i].object.id + '. \r\n' ;
+          tripleResults.push({Subject:getTriples[i].subject.id, Predicate:getTriples[i].predicate.id, Object:getTriples[i].object.id}) 
         }
-        if (printString){
-          printString = "Your file already exists. It has triples as below: \r\n" + printString;
-          fetchedDoc.textContent = printString;
+        if (tripleResults.length>0){
+          fetchedDoc.textContent = "Your file already exists with some triples";
+          tables.forEach(function(table){
+            if (table.classList.contains("fetchedTable")){
+              printTable(table, tripleResults, false);
+            }
+          });
+          
         }
         else{
           fetchedDoc.textContent = "Your file exists but nothing is inside!"
         }
-        alert("Your file 'private/healthcondition.ttl' already exists!");
+        alert("Your file already exists!");
+    
+      }).catch((err)=> {
+        const fetchedDoc = document.getElementById("createMessage");
+        fetchedDoc.textContent = err.message
+      });
+    }
+
+    else if (styles.contains('addSingleTriple')) {
+      let tripleResults = [];
+      const tables = document.querySelectorAll(".table");
+      const addTriplePredicate = document.getElementById("addTriplePredicate").value;
+      const addTripleObject = document.getElementById("addTripleObject").value;
+
+      tripleResults.push({Predicate:addTriplePredicate, Object:addTripleObject});
+      tables.forEach(function(table){
+        if (table.classList.contains("addedTable")){
+          printTable(table, tripleResults, true);
+        }
       });
     }
 
     // Add data/triples to the data file (this can be changed as user wants)
     else if (styles.contains('addData')) {
-      const fetchProfile = document.getElementById("fetchProfile").value;
-      const age = document.getElementById("input_age").value;
-      const height = document.getElementById("input_height").value;
-      const weight = document.getElementById("input_weight").value;
-      const diabetes = document.getElementById("input_diabetes").value;
-      const addContent = {'age':age, 'height':height, 'weight':weight, 'diabetes':diabetes};
+      const fileLocation = document.getElementById("fileLocation").value;
+      const profileHead = "https://" + fileLocation.substring(fileLocation.lastIndexOf("https://") + 8, fileLocation.lastIndexOf("/")) +"/";
+      const fileName = document.getElementById("fileName").value;
+      
+      var addedTableDict = []
+      const addedTable = document.getElementById("addedTable");
+      var rowLength = addedTable.rows.length; // gets rows of table
+      for (let i = 1; i < rowLength; i++){ //loops through rows    
+        var oCells = addedTable.rows.item(i).cells; //gets cells of current row  
+        addedTableDict.push({Predicate:oCells.item(0).innerHTML, Object:oCells.item(1).innerHTML}) //oCells;
+      }
 
-      getNotesList(fetchProfile).then(fetchedNotesListRef => {
-        addNote(fetchProfile, addContent, fetchedNotesListRef).then(success => {
-        const fetchedDoc = document.getElementById("fetchedDoc");
-        fetchedDoc.textContent = "New input data is stored in private/healthcondition.ttl";
+      getNotesList(profileHead, fileLocation, fileName).then(fetchedNotesListRef => {
+        addNote(profileHead, addedTableDict, fetchedNotesListRef).then(success => {
+        const fetchedDoc = document.getElementById("addTableMessage");
+        fetchedDoc.textContent = "Above triples are saved in " + fileName;
         alert("Your editing is successful!")
+        }).catch((err)=> {
+          const fetchedDoc = document.getElementById("addTableMessage");
+          fetchedDoc.textContent = err.message
         });
       });
     }
 
     // Check if the data request exists already
     else if (styles.contains('checkExtRequest')) {
-      const fetchProfile = document.getElementById("fetchProfile").value;
-      getRequestList(fetchProfile).then(fetchedRequestListRef => {
-        const getTriples = fetchedRequestListRef.getTriples();
-        const fetchedDoc = document.getElementById("fetchedDoc");
-        fetchedDoc.setAttribute('style', 'white-space: pre;');
 
-        let printString = '';
-        for (let i = 0; i < getTriples.length; i++){
-          printString += getTriples[i].subject.id + '\r\t' + getTriples[i].predicate.id + '\r\t' + getTriples[i].object.id + '. \r\n' ;
-        }
-        fetchedDoc.textContent = printString;
+      getWebId().then(webId => {
+        const fetchProfile = webId;
+        getRequestList(fetchProfile).then(fetchedRequestListRef => {
+
+          const firstRequestMessage = document.getElementById("firstRequestMessage");
+          firstRequestMessage.textContent = "Your have 'public/request.ttl' in your Solid Pod already. Ready to submit a data request!"
+        });
       });
+    }
+
+    else if (styles.contains('addRequestedData')) {
+      const addRequestedDataMessage = document.getElementById("addRequestedDataMessage");
+      const addRequestedDataList = addRequestedDataMessage.textContent.split('\r\n');
+      addRequestedDataMessage.setAttribute('style', 'white-space: pre;');
+
+      const request_data = document.getElementById("addTriplePredicate").value;
+      
+      if (!addRequestedDataList.includes(request_data) && request_data.length>0){
+        addRequestedDataList.push(request_data);
+        addRequestedDataMessage.textContent += request_data + '\r\n';
+      }
+      const request_data_list = addRequestedDataMessage.textContent.split('\r\n')
+      request_data_list.pop()
     }
 
     // Submit a new data request 
     else if (styles.contains('submitRequest')) {
-      // get the inputs from textbox from html
-      const fetchProfile = document.getElementById("fetchProfile").value;
-      const request_purpose = document.getElementById("input_purpose").value;
-      const request_data = document.getElementById("input_data").value;
-      const request_period = document.getElementById("input_period").value;
-      const request_numInstance = document.getElementById("input_numInstance").value;
-      const request_obj = document.getElementById("input_model")
-      const request_model = request_obj.options[request_obj.selectedIndex].text;
-  
-      const addRequestContent = {'purpose':request_purpose, 'data':request_data, 'period':request_period, 'numInstance':request_numInstance, 'model':request_model};
-      getRequestList(fetchProfile).then(fetchedRequestListRef => {
-        addRequest(fetchProfile, addRequestContent, fetchedRequestListRef).then(success => {
-        const fetchedDoc = document.getElementById("fetchedDoc");
-        fetchedDoc.textContent = "New request data is stored in public/request.ttl. Please give everyone poster access to your request.ttl.";
-        alert("Your request editting is successful!")
+      getWebId().then(webId => {
+
+        const fetchProfile = webId
+        const request_purpose = document.getElementById("input_purpose").value;
+
+        const addRequestedDataMessage = document.getElementById("addRequestedDataMessage");
+        const request_data = addRequestedDataMessage.textContent.split('\r\n')
+        request_data.pop()
+        
+        const request_period = new Date(document.getElementById("input_period").value);
+        const request_numInstance = document.getElementById("input_numInstance").value;
+        const request_obj = document.getElementById("input_model")
+        const request_model = request_obj.options[request_obj.selectedIndex].text;
+    
+        const addRequestContent = {'purpose':request_purpose, 'data':request_data, 'period':request_period, 'numInstance':request_numInstance, 'model':request_model};
+        getRequestList(fetchProfile).then(fetchedRequestListRef => {
+          addRequest(fetchProfile, addRequestContent, fetchedRequestListRef).then(success => {
+            alert("Request is published successfully! You can find it in public/request.ttl ");
+          });
         });
       });
     }
 
     // query the existing request
     else if (styles.contains('queryRequest')) {
-      const fetchRequest = document.getElementById("fetchRequest").value;
-      const fetchedDoc = document.getElementById("fetchedDoc");
-      fetchedDoc.setAttribute('style', 'white-space: pre;');
-      let printString = '';
+      if (styles.contains('forAnalysis')){
+        getWebId().then(profileWebID => {
+          getRequestList(profileWebID).then(fetchedRequestListRef => {
+            const findAllSubjects = fetchedRequestListRef.findSubjects(rdf.type, "http://schema.org/AskAction");
+            // const profileWebID = webId;
 
-      // if the user give the webID (will query all request of this person made)
-      if (fetchRequest.slice(-15).includes('profile/card')){
-        getRequestList(fetchRequest).then(fetchedRequestListRef=> {
-          const getTriples = fetchedRequestListRef.getTriples();
-          for (let i = 0; i < getTriples.length; i++){
-            printString += getTriples[i].subject.id + '\r\t' + getTriples[i].predicate.id + '\r\t' + getTriples[i].object.id + '. \r\n' ;
-          }
-          fetchedDoc.textContent = printString;
-        });
-      }
-      else{
-        // if the user give the request URL, (it will only query that single request)
-        getTriplesObjects(fetchRequest, null, null, true).then(getTriples => {
-          for (let i = 0; i < getTriples.length; i++){
-            if (getTriples[i].subject.id === fetchRequest){
-              printString += getTriples[i].subject.id + '\r\t' + getTriples[i].predicate.id + '\r\t' + getTriples[i].object.id + '. \r\n' ;
-            }
-          }
-          fetchedDoc.textContent = printString;
-        });
-      }
-    }
-
-    // Participate in a data request
-    else if (styles.contains('participate')) {
-      const fetchParticipateRequestId = document.getElementById("participateRequest").value;
-      
-      getWebId().then(webId => {
-        fetchRequestURL(fetchParticipateRequestId).then(fetchedRequestListRef=> {
-          const collectionSize = fetchedRequestListRef.getSubject(fetchParticipateRequestId).getInteger(schema.collectionSize);
-          const endDate = fetchedRequestListRef.getSubject(fetchParticipateRequestId).getDateTime(schema.endDate);
-          const requestModel = fetchedRequestListRef.getSubject(fetchParticipateRequestId).getString("http://schema.org/algorithm");
-
-          getParticipateList(webId).then(fetchedParticipateListRef=> {
-            // if the data request is in the regular analysis mode
-            if (requestModel.includes('Regular')){
-              addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, collectionSize, endDate, requestModel.includes('Privacy')).then(success=> {
-                alert(success);
-                const fetchedDoc = document.getElementById("fetchedDoc");
-                fetchedDoc.textContent = "Your participation is recorded. \n Please give requester (viewer) access to your data file.";
+            fetchRequestURL(profileWebID).then(webIdDoc => {
+              plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, "fromWebID", "requester").then(outcome => {
+                respondToRequest(outcome[0], outcome[1]);
               });
-            }
-            // if the data request is in the privacy-preserving mode
-            else if (requestModel.includes('Privacy')){
-              // Query the requested data item
-              fetchRequestURL(fetchParticipateRequestId).then(fetchedParticipateRequest=>{
-                const requestDataItem = fetchedParticipateRequest.getSubject(fetchParticipateRequestId).getRef(schema.DataFeedItem);
-                fetchRequestURL(webId.split('profile')[0]+'private/healthcondition.ttl').then(fetchedParticipantData=> {
-                  // get the latest age data
-                  const fetchedParticipantTriple = fetchedParticipantData.getTriples();
-      
-                  for (let j = 0; j < fetchedParticipantTriple.length; j++){
-                    if (fetchedParticipantTriple[j].predicate.id === requestDataItem){
-                      const requestedDataResult = parseInt(fetchedParticipantTriple[j].object.value);
-
-                      addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, collectionSize, endDate, [true, requestDataItem, requestedDataResult]).then(success=> {
-                        alert(success);
-                        const fetchedDoc = document.getElementById("fetchedDoc");
-                        fetchedDoc.textContent = "Your participation is in privacy-preserving analysis. Nothing has been recorded except the requested data.";
-                      });
-                    }
-                  }
-                }).catch(()=> {alert(err.message);});
-              }).catch(()=> {alert(err.message);});
-            } 
-          });
+            });
+          }).catch((err)=> {alert(err.message);});
         });
-      });
-    }
 
-    // conduct analysis button
-    else if (styles.contains('rglLearning')) {
-      const analyzeRequest = document.getElementById("fetchRequest").value;
-      const fetchRequest = analyzeRequest.split("#")[0];
-      
-      fetchRequestURL(fetchRequest).then(fetchedRequestListRef=> {
-        // Need to test in the future 
-        const collectionSize = fetchedRequestListRef.getSubject(analyzeRequest).getInteger(schema.collectionSize);
-        const requestModel = fetchedRequestListRef.getSubject(analyzeRequest).getString("http://schema.org/algorithm");
+      }else{
+        const fetchRequest = document.getElementById("fetchRequest").value;
 
-        // analyze data from regular request, 
-        if (requestModel.includes("Regular")){
-          const requestDataItem = fetchedRequestListRef.getSubject(analyzeRequest).getRef(schema.DataFeedItem);
-          const getRequestTriples = fetchedRequestListRef.getTriples();
-          
-          // Find all participants response who participate the request
-          let participantResponseId = [];
-          for (let i = 0; i < getRequestTriples.length; i++){
-            if (getRequestTriples[i].predicate.id === "http://schema.org/RsvpResponseYes" && getRequestTriples[i].object.id === analyzeRequest){
-              participantResponseId.push(getRequestTriples[i].subject.id);  
-            }
-          }
+        // if the user give the webID (will query all request of this person made)
+        if (fetchRequest.slice(-15).includes('profile/card')){
+          getRequestList(fetchRequest).then(fetchedRequestListRef => {
+            const findAllSubjects = fetchedRequestListRef.findSubjects(rdf.type, "http://schema.org/AskAction");
+            const profileWebID = fetchRequest;
 
-          const fetchedDoc = document.getElementById("fetchedDoc");
-          fetchedDoc.setAttribute('style', 'white-space: pre;');
-          let printString = '';
-          let requestDataSum = 0;
-          let requestDataList = [];
-
-          for (let i = 0; i < participantResponseId.length; i++){
-            // Fetch each response in the request.ttl
-            fetchRequestURL(participantResponseId[i]).then(fetchedparticipantResponse=> {
-              // Find the healthcondition.ttl
-              const participantWebId = fetchedparticipantResponse.getSubject(participantResponseId[i]).getRef(schema.participant)
-              // fetch each participant's healthcondition.ttl
-              fetchRequestURL(participantWebId.split('profile')[0]+'private/healthcondition.ttl').then(fetchedParticipantData=> {
-                // get the latest age data
-                const fetchedParticipantTriple = fetchedParticipantData.getTriples();
-
-                for (let j = 0; j < fetchedParticipantTriple.length; j++){
-                  if (fetchedParticipantTriple[j].predicate.id === requestDataItem){
-                    printString += fetchedParticipantTriple[j].object.id + '\r\n'; //fetchedParticipantTriple[j].subject.id
-                    requestDataSum += parseInt(fetchedParticipantTriple[j].object.value);
-                    requestDataList.push(parseInt(fetchedParticipantTriple[j].object.value))
-                    // Print the results at the end
-                    if (i==participantResponseId.length-1 && j==fetchedParticipantTriple.length-1){
-                      fetchedDoc.textContent = printString + '\n Analysis result:' + (requestDataSum/requestDataList.length).toString();
-                    }
-                  }
-                }
-              }).catch(()=> {alert(err.message);});
-            }).catch(()=> {alert(err.message);});
-          }
+            fetchRequestURL(profileWebID).then(webIdDoc => {
+              plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, "fromWebID", "participant").then(outcome => {
+                respondToRequest(outcome[0], outcome[1]);
+              });
+            });
+          }).catch((err)=> {alert(err.message);});
         }
-        else if (requestModel.includes("Privacy")){
-          alert("Your request needs privacy-preserving analysis. Please click 'PRIVACY-PRESERVING ANALYSIS button!");
-        }
-      }).catch(()=> {alert(err.message);});
-    }
+        else{
+          // if the user give the request URL, (it will only query that single request)
+          getTriplesObjects(fetchRequest, null, null, true).then(getTriples => {
+            // const singleSubject = [];
+            // singleSubject.push(getTriples);
+            const profileWebID = "https://" + fetchRequest.substring(fetchRequest.lastIndexOf("https://") + 8, fetchRequest.lastIndexOf("/public")) + "/profile/card#me";
 
-    // analyze data from privacy-preserving data request
-    else if (styles.contains('ppLearning')) {
-      const analyzeRequest = document.getElementById("fetchRequest").value;
-      const fetchRequest = analyzeRequest.split("#")[0];
-      
-      fetchRequestURL(fetchRequest).then(fetchedRequestListRef=> {
-        // Need to test in the future 
-        const collectionSize = fetchedRequestListRef.getSubject(analyzeRequest).getInteger(schema.collectionSize);
-        const requestModel = fetchedRequestListRef.getSubject(analyzeRequest).getString("http://schema.org/algorithm");
-        if (requestModel.includes("Privacy")){
-          const requestDataItem = fetchedRequestListRef.getSubject(analyzeRequest).getRef(schema.DataFeedItem);
-          const getRequestTriples = fetchedRequestListRef.getTriples();
-          
-          // Find all response to this request with requested data item
-          let participantResponseId = [];
-          for (let i = 0; i < getRequestTriples.length; i++){
-            if (getRequestTriples[i].predicate.id === "http://schema.org/RsvpResponseYes" && getRequestTriples[i].object.id === analyzeRequest){
-              participantResponseId.push(getRequestTriples[i].subject.id);  
-            }
-          }
+            fetchRequestURL(profileWebID).then(webIdDoc => {
+              plotCardsOnPage(webIdDoc, profileWebID, getTriples, fetchRequest, "participant").then(outcome => {
+                respondToRequest(outcome[0], outcome[1])
+              });
 
-          const fetchedDoc = document.getElementById("fetchedDoc");
-          fetchedDoc.setAttribute('style', 'white-space: pre;');
-          let printString = '';
-          let requestDataSum = 0;
-          let requestDataList = [];
-
-          for (let i = 0; i < participantResponseId.length; i++){
-            // Fetch each response in the request.ttl
-            fetchRequestURL(participantResponseId[i]).then(fetchedparticipantResponse=> {
-              // Find the healthcondition.ttl
-              const requestedDataResult = fetchedparticipantResponse.getSubject(participantResponseId[i]).getInteger(requestDataItem)
-              printString += requestedDataResult + '\r\n'; //fetchedParticipantTriple[j].subject.id
-              requestDataSum += parseInt(requestedDataResult);
-              requestDataList.push(parseInt(requestedDataResult))
-
-              if (i==participantResponseId.length-1){
-                fetchedDoc.textContent = printString + '\n Analysis result:' + (requestDataSum/requestDataList.length).toString();
-              }
-            }).catch(()=> {alert(err.message);});
-          }
-        }
-        else if (requestModel.includes("Regular")){alert("Your request needs regular analysis. Please click 'REGULAR ANALYSIS button!");}
-      }).catch(()=> {alert(err.message);});
+            });
+          }).catch((err)=> {alert(err.message);});
+        } 
+      }
     }
   });
 });
+
+/*
+Response to data request button
+*/
+function respondToRequest(answer_btns, requestContentList){
+  answer_btns.forEach(function(ans_btn) {
+    ans_btn.addEventListener("click", function(e){
+      e.preventDefault();
+      const style = e.currentTarget.classList
+      // find which request the user is reponding
+      const index = style.value.split(' ').pop().split('_')[1];
+      const selectedRequest = requestContentList[index]; 
+
+      // Participate in a data request
+      if (style.contains('Approve')) {
+        const fetchParticipateRequestId = selectedRequest.url;
+        const participate_period = new Date(document.getElementById("untilDate"+index).value);
+        
+        getWebId().then(webId => {
+          fetchRequestURL(fetchParticipateRequestId).then(fetchedRequestListRef=> {
+            const collectionSize = fetchedRequestListRef.getSubject(fetchParticipateRequestId).getInteger(schema.collectionSize);
+            const endDate = fetchedRequestListRef.getSubject(fetchParticipateRequestId).getDateTime(schema.endDate);
+            const requestModel = fetchedRequestListRef.getSubject(fetchParticipateRequestId).getString("http://schema.org/algorithm");
+  
+            getParticipateList(webId).then(fetchedParticipateListRef=> {
+              // if the data request is in the regular analysis mode
+              if (requestModel.includes('Regular')){
+                const aclDocument = webId.split("profile")[0] + "private/healthcondition.ttl.acl"
+                fetchRequestURL(aclDocument).then(AccessControlList => {
+                  addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, AccessControlList, collectionSize, endDate, participate_period, requestModel.includes('Privacy')).then(success=> {
+                    alert(success);
+                    const fetchedDoc = document.getElementById("fetchedDoc");
+                    fetchedDoc.textContent = "Your participation is recorded. \n Please give requester (viewer) access to your data file.";
+                  });
+                }).catch((err)=> {alert("Please turn on your file specific sharing.");});
+              }
+              // if the data request is in the privacy-preserving mode
+              else if (requestModel.includes('Privacy')){
+                // Query the requested data item
+                fetchRequestURL(fetchParticipateRequestId).then(fetchedParticipateRequest=>{
+                  const requestDataItem = fetchedParticipateRequest.getSubject(fetchParticipateRequestId).getRef(schema.DataFeedItem);
+                  fetchRequestURL(webId.split('profile')[0]+'private/healthcondition.ttl').then(fetchedParticipantData=> {
+                    // get the latest age data
+                    const fetchedParticipantTriple = fetchedParticipantData.getTriples();
+        
+                    for (let j = 0; j < fetchedParticipantTriple.length; j++){
+                      if (fetchedParticipantTriple[j].predicate.id === requestDataItem){
+                        const requestedDataResult = parseInt(fetchedParticipantTriple[j].object.value);
+  
+                        addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, collectionSize, endDate, [true, requestDataItem, requestedDataResult]).then(success=> {
+                          alert(success);
+                          const fetchedDoc = document.getElementById("fetchedDoc");
+                          fetchedDoc.textContent = "Your participation is in privacy-preserving analysis. Nothing has been recorded except the requested data.";
+                        });
+                      }
+                    }
+                  }).catch((err)=> {alert(err.message);});
+                }).catch((err)=> {alert(err.message);});
+              } 
+            });
+          });
+        });
+      }
+  
+      // conduct analysis button
+      else if (style.contains('rglLearning')) {
+        const analyzeRequest = selectedRequest.url; 
+        const fetchRequest = analyzeRequest.split("#")[0];
+        
+        fetchRequestURL(fetchRequest).then(fetchedRequestListRef=> {
+          // Need to test in the future 
+          const collectionSize = fetchedRequestListRef.getSubject(analyzeRequest).getInteger(schema.collectionSize);
+          const requestModel = fetchedRequestListRef.getSubject(analyzeRequest).getString("http://schema.org/algorithm");
+  
+          // analyze data from regular request, 
+          if (requestModel.includes("Regular")){
+            const requestDataItem = fetchedRequestListRef.getSubject(analyzeRequest).getRef(schema.DataFeedItem);
+            const getRequestTriples = fetchedRequestListRef.getTriples();
+            
+            // Find all participants response who participate the request
+            let participantResponseId = [];
+            for (let i = 0; i < getRequestTriples.length; i++){
+              if (getRequestTriples[i].predicate.id === "http://schema.org/RsvpResponseYes" && getRequestTriples[i].object.id === analyzeRequest){
+                participantResponseId.push(getRequestTriples[i].subject.id);  
+              }
+            }
+  
+            const fetchedDoc = document.getElementById("fetchedDoc");
+            let printString = '';
+            let requestDataSum = 0;
+            let requestDataList = [];
+  
+            for (let i = 0; i < participantResponseId.length; i++){
+              // Fetch each response in the request.ttl
+              fetchRequestURL(participantResponseId[i]).then(fetchedparticipantResponse=> {
+                // Find the healthcondition.ttl
+                const participantWebId = fetchedparticipantResponse.getSubject(participantResponseId[i]).getRef(schema.participant)
+                const participatePeriod = fetchedparticipantResponse.getSubject(participantResponseId[i]).getDateTime(schema.endDate)
+                if (participatePeriod > new Date(Date.now())){
+                  // fetch each participant's healthcondition.ttl
+                  fetchRequestURL(participantWebId.split('profile')[0]+'private/healthcondition.ttl').then(fetchedParticipantData=> {
+                    // get the latest age data
+                    const fetchedParticipantTriple = fetchedParticipantData.getTriples();
+                    for (let j = 0; j < fetchedParticipantTriple.length; j++){
+                      if (fetchedParticipantTriple[j].predicate.id === requestDataItem){
+                        printString += fetchedParticipantTriple[j].object.id + '\r\n'; //fetchedParticipantTriple[j].subject.id
+                        requestDataSum += parseInt(fetchedParticipantTriple[j].object.value);
+                        requestDataList.push(parseInt(fetchedParticipantTriple[j].object.value))
+                        // Print the results at the end
+                        if (i==participantResponseId.length-1 && j==fetchedParticipantTriple.length-1){
+                          fetchedDoc.textContent = printString + '\n Analysis result:' + (requestDataSum/requestDataList.length).toString();
+                        }
+                      }
+                    }
+                  }).catch((err)=> {alert(err.message);});
+                }else{alert("Participation period of "+ participantResponseId[i].toString + " has expired!")}
+              }).catch((err)=> {alert(err.message);});
+            }
+          }
+          else if (requestModel.includes("Privacy")){
+            alert("Your request needs privacy-preserving analysis. Please click 'PRIVACY-PRESERVING ANALYSIS button!");
+          }
+        }).catch((err)=> {alert(err.message);});
+      }
+  
+      // analyze data from privacy-preserving data request
+      else if (style.contains('ppLearning')) {
+        const analyzeRequest = selectedRequest.url;
+        const fetchRequest = analyzeRequest.split("#")[0];
+        
+        fetchRequestURL(fetchRequest).then(fetchedRequestListRef=> {
+          // Need to test in the future 
+          const collectionSize = fetchedRequestListRef.getSubject(analyzeRequest).getInteger(schema.collectionSize);
+          const requestModel = fetchedRequestListRef.getSubject(analyzeRequest).getString("http://schema.org/algorithm");
+          if (requestModel.includes("Privacy")){
+            const requestDataItem = fetchedRequestListRef.getSubject(analyzeRequest).getRef(schema.DataFeedItem);
+            const getRequestTriples = fetchedRequestListRef.getTriples();
+            
+            // Find all response to this request with requested data item
+            let participantResponseId = [];
+            for (let i = 0; i < getRequestTriples.length; i++){
+              if (getRequestTriples[i].predicate.id === "http://schema.org/RsvpResponseYes" && getRequestTriples[i].object.id === analyzeRequest){
+                participantResponseId.push(getRequestTriples[i].subject.id);  
+              }
+            }
+  
+            const fetchedDoc = document.getElementById("fetchedDoc");
+            fetchedDoc.setAttribute('style', 'white-space: pre;');
+            let printString = '';
+            let requestDataSum = 0;
+            let requestDataList = [];
+  
+            for (let i = 0; i < participantResponseId.length; i++){
+              // Fetch each response in the request.ttl
+              fetchRequestURL(participantResponseId[i]).then(fetchedparticipantResponse=> {
+                // Find the healthcondition.ttl
+                const requestedDataResult = fetchedparticipantResponse.getSubject(participantResponseId[i]).getInteger(requestDataItem)
+                printString += requestedDataResult + '\r\n'; //fetchedParticipantTriple[j].subject.id
+                requestDataSum += parseInt(requestedDataResult);
+                requestDataList.push(parseInt(requestedDataResult))
+  
+                if (i==participantResponseId.length-1){
+                  fetchedDoc.textContent = printString + '\n Analysis result:' + (requestDataSum/requestDataList.length).toString();
+                }
+              }).catch((err)=> {alert(err.message);});
+            }
+          }
+          else if (requestModel.includes("Regular")){alert("Your request needs regular analysis. Please click 'REGULAR ANALYSIS button!");}
+        }).catch((err)=> {alert(err.message);});
+      }
+  
+      // analyze data from privacy-preserving data request
+      // else if (styles.contains('testing')) {
+      //   const fetchRequest = document.getElementById("fetchFrom").value;
+        
+      //   fetchRequestURL(fetchRequest).then(fetchedRequestListRef=> {
+      //     console.log(fetchedRequestListRef)
+      //   });
+      // }
+    });
+  });
+
+}
+
 

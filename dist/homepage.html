@@ -1,44 +1,281 @@
+<!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chang First SOLID APP</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <!-- Interface -->
-    <nav>
-      <div class="nav-center">
-         <!-- nav header -->
-        <div class="nav-header">
-          <h4>My FIRST SOLID APP</h4>
-          <button class="nav-toggle">
-            <i class="fas fa-bars"></i>
-          </button>
+<head>
+  <!-- Standard Meta -->
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+
+  <!-- Site Properties -->
+  <title>Homepage - Semantic</title>
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/reset.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/site.css">
+
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/container.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/grid.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/header.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/image.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/menu.css">
+
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/divider.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/dropdown.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/segment.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/button.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/list.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/icon.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/sidebar.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/transition.css">
+
+  <style type="text/css">
+
+    .hidden.menu {
+      display: none;
+    }
+
+    .masthead.segment {
+      min-height: 700px;
+      padding: 1em 0em;
+    }
+    .masthead .logo.item img {
+      margin-right: 1em;
+    }
+    .masthead .ui.menu .ui.button {
+      margin-left: 0.5em;
+    }
+    .masthead h1.ui.header {
+      margin-top: 3em;
+      margin-bottom: 0em;
+      font-size: 4em;
+      font-weight: normal;
+    }
+    .masthead h2 {
+      font-size: 1.7em;
+      font-weight: normal;
+    }
+
+    .ui.vertical.stripe {
+      padding: 8em 0em;
+    }
+    .ui.vertical.stripe h3 {
+      font-size: 2em;
+    }
+    .ui.vertical.stripe .button + h3,
+    .ui.vertical.stripe p + h3 {
+      margin-top: 3em;
+    }
+    .ui.vertical.stripe .floated.image {
+      clear: both;
+    }
+    .ui.vertical.stripe p {
+      font-size: 1.33em;
+    }
+    .ui.vertical.stripe .horizontal.divider {
+      margin: 3em 0em;
+    }
+
+    .quote.stripe.segment {
+      padding: 0em;
+    }
+    .quote.stripe.segment .grid .column {
+      padding-top: 5em;
+      padding-bottom: 5em;
+    }
+
+    .footer.segment {
+      padding: 5em 0em;
+    }
+
+    .secondary.pointing.menu .toc.item {
+      display: none;
+    }
+
+    @media only screen and (max-width: 700px) {
+      .ui.fixed.menu {
+        display: none !important;
+      }
+      .secondary.pointing.menu .item,
+      .secondary.pointing.menu .menu {
+        display: none;
+      }
+      .secondary.pointing.menu .toc.item {
+        display: block;
+      }
+      .masthead.segment {
+        min-height: 350px;
+      }
+      .masthead h1.ui.header {
+        font-size: 2em;
+        margin-top: 1.5em;
+      }
+      .masthead h2 {
+        margin-top: 0.5em;
+        font-size: 1.5em;
+      }
+    }
+  </style>
+
+  <script src="assets/library/jquery.min.js"></script>
+  <script src="../semantic/dist/components/visibility.js"></script>
+  <script src="../semantic/dist/components/sidebar.js"></script>
+  <script src="../semantic/dist/components/transition.js"></script>
+  <script type="text/javascript" src="../semantic/dist/components/dropdown.js"></script>
+  <script>
+  $(document)
+    .ready(function() {
+
+      // fix menu when passed
+      $('.masthead')
+        .visibility({
+          once: false,
+          onBottomPassed: function() {
+            $('.fixed.menu').transition('fade in');
+          },
+          onBottomPassedReverse: function() {
+            $('.fixed.menu').transition('fade out');
+          }
+        })
+      ;
+
+      // create sidebar and attach to menu open
+      $('.ui.sidebar')
+        .sidebar('attach events', '.toc.item')
+      ;
+
+    })
+  ;
+  </script>
+</head>
+<body>
+
+<!-- Following Menu -->
+<div class="ui large top fixed hidden menu">
+  <div class="ui container">
+    <a class="active item" href="homepage_.html">Home</a>
+    <a class="item" href="fetch.html">Fetch</a>
+    <a class="item" href="create.html">Create</a>
+    <a class="item" href="participate.html">Participate</a>
+    <a class="item" href="request.html">Request</a>
+    <div class="right menu">
+      <div class="item">
+        <a class="ui primary login button" href="login.html" id="logStatusFollowing">Log in</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Page Contents -->
+<div class="pusher">
+  <div class="ui inverted vertical masthead center aligned segment">
+    <div class="ui container">
+      <div class="ui large secondary inverted pointing menu">
+        <a class="toc item">
+          <i class="sidebar icon"></i>
+        </a>
+        <a class="active item" href="homepage.html">Home</a>
+        <a class="item" href="fetch.html">Fetch</a>
+        <a class="item" href="create.html">Create</a>
+        <a class="item" href="participate.html">Participate</a>
+        <a class="item" href="request.html">Request</a>
+        <div class="right item">
+          <a class="ui inverted login button" href="login.html" id="logStatusPage">Log in</a>
         </div>
-        <ul class="inks">
-          <li>
-            <a href="login.html">Log In</a>
-          </li>
-        </ul>
       </div>
-    </nav>
-    <!-- Main panel -->
-    <main>
-      <div class="containter">
-        <h3>Welcome to Chang's First SOLID App. </h3>
-        <h4>Current available functions: </h4>
-        <h4>1) Login and logout </h4>
-        <h4>2) Grant the permisson </h4>
-        <h4>3) Fetch data files from SOLID Pod </h4>
-        <h4>4) Create new data files to SOLID Pod </h4>
-        <h4>5) Create data request (as a researcher) </h4>
-        <h4>6) Provide data to a request (as a participant) </h4>
-        <h4>7) Conduct analysis on requested data (e.g., calculate average) </h4>
+    </div>
+
+    <div class="ui text container">
+      <h1 class="ui inverted header">
+        SOLID Data for Research
+      </h1>
+      <h3 id="homeMessage">Contribute your data in SOLID to research with full control and privacy preserved.</h3>
+      <div class="ui huge inverted button">Github</i></div>
+      <div class="ui huge primary button">Get Started <i class="right arrow icon"></i></div>
+    </div>
+  </div>
+
+  <div class="ui vertical stripe segment">
+    <div class="ui middle aligned stackable grid container">
+      <div class="row">
+        <div class="eight wide column">
+          <h3 class="ui header">We Help Companies and Companions</h3>
+          <p>We can give your company superpowers to do things that they never thought possible. Let us delight your customers and empower your needs...through pure data analytics.</p>
+          <h3 class="ui header">We Make Bananas That Can Dance</h3>
+          <p>Yes that's right, you thought it was the stuff of dreams, but even bananas can be bioengineered.</p>
+        </div>
+        <div class="six wide right floated column">
+          <img src="assets/images/wireframe/white-image.png" class="ui large bordered rounded image">
         </div>
       </div>
+      <div class="row">
+        <div class="center aligned column">
+          <a class="ui huge button">Check Them Out</a>
+        </div>
       </div>
-    </main>
-    <script src="main.js"></script>
-  </body>
+    </div>
+  </div>
+
+
+  <div class="ui vertical stripe quote segment">
+    <div class="ui equal width stackable internally celled grid">
+      <div class="center aligned row">
+        <div class="column">
+          <h3>"What a Company"</h3>
+          <p>That is what they all say about us</p>
+        </div>
+        <div class="column">
+          <h3>"I shouldn't have gone with their competitor."</h3>
+          <p>
+            <img src="assets/images/avatar/nan.jpg" class="ui avatar image"> <b>Nan</b> Chief Fun Officer Acme Toys
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ui vertical stripe segment">
+    <div class="ui text container">
+      <h3 class="ui header">Breaking The Grid, Grabs Your Attention</h3>
+      <p>Instead of focusing on content creation and hard work, we have learned how to master the art of doing nothing by providing massive amounts of whitespace and generic content that can seem massive, monolithic and worth your attention.</p>
+      <a class="ui large button">Read More</a>
+      <h4 class="ui horizontal header divider">
+        <a href="#">Case Studies</a>
+      </h4>
+      <h3 class="ui header">Did We Tell You About Our Bananas?</h3>
+      <p>Yes I know you probably disregarded the earlier boasts as non-sequitur filler content, but its really true. It took years of gene splicing and combinatory DNA research, but our bananas can really dance.</p>
+      <a class="ui large button">I'm Still Quite Interested</a>
+    </div>
+  </div>
+
+
+  <div class="ui inverted vertical footer segment">
+    <div class="ui container">
+      <div class="ui stackable inverted divided equal height stackable grid">
+        <div class="three wide column">
+          <h4 class="ui inverted header">About</h4>
+          <div class="ui inverted link list">
+            <a href="https://www.maastrichtuniversity.nl/chang.sun" class="item">Contact author</a>
+            <a href="https://www.maastrichtuniversity.nl/research/institute-data-science" class="item">Our group</a>
+            <a href="https://github.com/sunchang0124/sunchang0124.github.io" class="item">Open-source code</a>
+          </div>
+        </div>
+        <div class="three wide column">
+          <h4 class="ui inverted header">Resources</h4>
+          <div class="ui inverted link list">
+            <a href="https://solidproject.org/use-solid/" class="item">What is SOLID</a>
+            <a href="https://forum.solidproject.org/top/all" class="item">SOLID Forum</a>
+            <a href="https://solidproject.org/use-solid/apps" class="item">Other SOLID App</a>
+          </div>
+        </div>
+        <div class="seven wide column">
+          <h4 class="ui inverted header">Message to users</h4>
+          <p>This project is still working in progress so that some improvements and changes mighe be taken in place in the future.
+            You are very welcome to comment or contribute to the project.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="main.js"></script>
+</body>
+
 </html>

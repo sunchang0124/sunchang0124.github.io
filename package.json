@@ -11,11 +11,12 @@
   "dependencies": {
     "@types/solid-auth-client": "^2.4.0",
     "rdf-namespaces": "^1.8.0",
+    "semantic-ui": "^2.4.2",
     "solid-auth-client": "^2.4.1",
     "tripledoc": "^4.3.4"
   },
   "devDependencies": {
     "webpack": "^4.43.0",
-    "webpack-cli": "^3.3.11"
+    "webpack-cli": "^3.3.12"
   }
 }

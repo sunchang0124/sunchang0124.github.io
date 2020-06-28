@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chang First SOLID APP</title>
+    <!-- font awesome  -->
+    <link
+      rel="stylesheet"
+      href="./fontawesome-free-5.12.0-web/css/all.min.css"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Interface -->
+    <nav>
+      <div class="nav-center">
+        <!-- nav header -->
+        <div class="nav-header">
+          <h4>My FIRST SOLID APP</h4>
+          <button class="nav-toggle">
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
+        <ul class="links">
+          <li>
+            <a href="login.html">Log Out</a>
+          </li>
+          <li>
+            <a href="create.html">Create</span></a>
+          </li>
+          <li>
+            <a href="participate.html">Participate</span></a>
+          </li>
+          <li>
+            <a href="request.html">Request</span></a>
+          </li>
+          <li>
+            <a href="analysis.html">Analysis</span></a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+    <!-- Main panel -->
+    <main>
+      <section class="container">
+        <!-- title -->
+        <div class='title'>
+          <h2>Fetch data from Solid Pod:</h2>
+        </div>
+        <!-- Fetched Text -->
+        <article class="review">
+          <div class="button-container">
+            <h4 id="fetchedFrom">Fetch from: <input type="url" id="fetchFrom" placeholder="https://chang.inrupt.net/public/apptest.ttl" size="50" style="font-size:18px;"></h4>
+            <h4 id="fetchedSubject">Subject URI: <input type="url" id="fetchSubject" placeholder="https://chang.inrupt.net/profile/card#me" size="49" style="font-size:18px;"></h4>
+            <h4 id="fetchedPredicate">Predicate URI: <input type="url" id="fetchPredicate" placeholder="http://xmlns.com/foaf/0.1/name" size="47" style="font-size:18px;"></h4>
+            <button class='btn fetchObjects'>Only Objects</button>
+            <button class='btn fetchTriples'>All Triples</button>
+            <button class='btn testing'>Testing</button>
+            <p id="fetchedText">Fetched Text will show here</p>
+          </div>
+        </article>
+      </section>
+    </main>
+    <script src="main.js"></script>
+  </body>
+</html>

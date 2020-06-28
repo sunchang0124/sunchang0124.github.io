@@ -1,0 +1,66 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chang First SOLID APP</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Loading -->
+    <div>
+      <span id="loading">Loading&hellip;</span>
+    </div>
+    <!-- Interface -->
+    <nav>
+      <div class="nav-center">
+        <!-- nav header -->
+        <div class="nav-header">
+          <h4>My FIRST SOLID APP</h4>
+          <button class="nav-toggle">
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
+        <!-- links -->
+        <ul class="links">
+          <li>
+            <a href="login.html"><span id="logStatus"></span></a>
+          </li>
+          <li>
+            <a href="fetch.html"><span id="fetch"></span></a>
+          </li>
+          <li>
+            <a href="create.html"><span id="createData"></span></a>
+          </li>
+          <li>
+            <a href="participate.html">Participate</span></a>
+          </li>
+          <li>
+            <a href="request.html">Request</a>
+          </li>
+          <li>
+            <a href="analysis.html">Analysis</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+    <!-- Main panel -->
+    <main>
+      <div class="containter">
+        <h3><span id='headings'></span></h3>
+        <div class="button-container">
+          <button class='btn inrupt' >inrupt.net</button>
+          <button class='btn solid'>solid.community</button>
+          <button class="btn logout" onclick="location.href='homepage.html'">
+            <span id=btn-logout>...</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="webIdDisplay">
+        <h4><span id="webId"></span></h4>
+      </div>
+      </div>
+    </main>
+    <script src="main.js"></script>
+  </body>
+</html>

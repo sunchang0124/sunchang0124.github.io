@@ -1,66 +1,75 @@
+<!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chang First SOLID APP</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <!-- Loading -->
-    <div>
-      <span id="loading">Loading&hellip;</span>
-    </div>
-    <!-- Interface -->
-    <nav>
-      <div class="nav-center">
-        <!-- nav header -->
-        <div class="nav-header">
-          <h4>My FIRST SOLID APP</h4>
-          <button class="nav-toggle">
-            <i class="fas fa-bars"></i>
-          </button>
-        </div>
-        <!-- links -->
-        <ul class="links">
-          <li>
-            <a href="login.html"><span id="logStatus"></span></a>
-          </li>
-          <li>
-            <a href="fetch.html"><span id="fetch"></span></a>
-          </li>
-          <li>
-            <a href="create.html"><span id="createData"></span></a>
-          </li>
-          <li>
-            <a href="participate.html">Participate</span></a>
-          </li>
-          <li>
-            <a href="request.html">Request</a>
-          </li>
-          <li>
-            <a href="analysis.html">Analysis</a>
-          </li>
-        </ul>
-      </div>
-    </nav>
-    <!-- Main panel -->
-    <main>
-      <div class="containter">
-        <h3><span id='headings'></span></h3>
-        <div class="button-container">
-          <button class='btn inrupt' >inrupt.net</button>
-          <button class='btn solid'>solid.community</button>
-          <button class="btn logout" onclick="location.href='homepage.html'">
-            <span id=btn-logout>...</span>
-          </button>
-        </div>
-      </div>
+<head>
+  <!-- Standard Meta -->
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 
-      <div id="webIdDisplay">
-        <h4><span id="webId"></span></h4>
+  <!-- Site Properties -->
+  <title>Login Example - Semantic</title>
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/reset.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/site.css">
+
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/container.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/grid.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/header.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/image.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/menu.css">
+
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/divider.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/segment.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/form.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/input.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/button.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/list.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/message.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/icon.css">
+
+  <script src="assets/library/jquery.min.js"></script>
+  <script src="../semantic/dist/components/form.js"></script>
+  <script src="../semantic/dist/components/transition.js"></script>
+
+  <style type="text/css">
+    body {
+      background-color: #f8f8f8;
+    }
+    body > .grid {
+      height: 100%;
+    }
+    .image {
+      margin-top: -100px;
+    }
+    .column {
+      max-width: 450px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="ui middle aligned center aligned grid">
+  <div class="column">
+    <h2 class="ui violet image header">
+      <img src="assets/images/solid-logo.png" class="image">
+      <div class="content">
+        Log-in to your SOLID account
       </div>
+    </h2>
+    <div class="ui segment">
+      <h4 id="loginMessage">Please choose your Solid WebID provider: </h4>
+      <div class="ui buttons">
+        <button class="ui large purple button inrupt listen">Inrupt.net</button>
+        <div class="or"></div>
+        <button class="ui large purple button solid listen">Solid.community</button>
       </div>
-    </main>
-    <script src="main.js"></script>
-  </body>
+    </div>
+
+    <div class="ui message">
+      New to SOLID? <a href="https://solid.mit.edu/">Get a SOLID account</a>
+    </div>
+  </div>
+</div>
+<script src="main.js"></script>
+</body>
+
 </html>
