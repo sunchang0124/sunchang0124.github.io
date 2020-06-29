@@ -323,8 +323,18 @@ async function addRequest(fetchProfile, content, requestList) {
 
   const success = await requestList.save([newDataElement]);
 
+  // add request to register list (currently at chang.inrupt.net/registerlist/requestlist.ttl)
+  const registerLink = "https://chang.inrupt.net/registerlist/requestlist.ttl"
+  const fetchRegisterLinkFile = await fetchDocument(registerLink)
+  
+  const newRegisterRecord = fetchRegisterLinkFile.addSubject();
+  newRegisterRecord.addRef(schema.recordedAs, newDataElement.asRef());
+  newRegisterRecord.addRef(schema.creator, fetchProfile);
+  await fetchRegisterLinkFile.save([newRegisterRecord]);
+
   return success;
 }
+
 
 async function fetchRequestURL(fetchRequest) {
   return await fetchDocument(fetchRequest)
@@ -407,8 +417,9 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
   if (responseSize <= collectionSize){
     if (responseDate <= endDate){ 
       if (!responseUserExisted){
-
         if (participate_period >= new Date(Date.now())){
+          
+   
           if (!privacyOption){
             // add participate record to participation.ttl
             const newParticipateDataElement = participateList.addSubject();
@@ -643,14 +654,19 @@ async function generateCards(requestContentList, userRole){
 
 async function plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, option, userRole){
   var requestContentList = [];
-  const profile = webIdDoc.getSubject(profileWebID);
-
-
-  if (option === "fromWebID"){
+  console.log(findAllSubjects)
+  if (option === "fromPageEntrance"){
+    for (let i=0; i<findAllSubjects.length; i++){
+      const eachProfile = webIdDoc[i].getSubject(profileWebID[i]);
+      requestContentList.push(writeAllRequest(eachProfile, findAllSubjects[i].fetchedRequestDoc.getTriples(), findAllSubjects[i].fetchedRequestID));
+    }
+  }else if (option === "fromWebID"){
+    const profile = webIdDoc.getSubject(profileWebID);
     for (let i=0; i<findAllSubjects.length; i++){
       requestContentList.push(writeAllRequest(profile, findAllSubjects[i].getTriples(), findAllSubjects[i].asRef()));
     }
   }else{
+    const profile = webIdDoc.getSubject(profileWebID);
       requestContentList.push(writeAllRequest(profile, findAllSubjects, option));
   }
 
@@ -660,6 +676,45 @@ async function plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, option, 
   const outcome = [answer_btns, requestContentList]
 
   return outcome
+}
+
+async function fetchRegisterList(fetchRegisterRecord){
+  
+  const registerRecordTriple = fetchRegisterRecord.getTriples();
+  const requestURIList = [];
+  const requestWebIdDocList = [];
+  const requestProfileIdList = []
+  for (let i=0; i<registerRecordTriple.length; i++){
+    if (registerRecordTriple[i].predicate.id === schema.recordedAs){
+      const fetchEachRequest = await fetchDocument(registerRecordTriple[i].object.id);
+      requestURIList.push({fetchedRequestID:registerRecordTriple[i].object.id, fetchedRequestDoc:fetchEachRequest});
+
+    }else if (registerRecordTriple[i].predicate.id === schema.creator){
+      requestProfileIdList.push(registerRecordTriple[i].object.id);
+      const webIdDoc = await fetchDocument(registerRecordTriple[i].object.id);
+      requestWebIdDocList.push(webIdDoc);
+    }
+  }
+  const fetchedRequestAndWebId = [requestURIList, requestWebIdDocList, requestProfileIdList];
+  return fetchedRequestAndWebId
+}
+
+// request page show all existing data request
+var page = window.location.pathname.split("/").pop();
+if (page === "participate.html"){
+  const registerFileURL = "https://chang.inrupt.net/registerlist/requestlist.ttl";
+  fetchRequestURL(registerFileURL).then(fetchRegisterRecord => {
+    fetchRegisterList(fetchRegisterRecord).then(fetchedRequestAndWebId =>{
+
+      const requestURIList = fetchedRequestAndWebId[0]
+      const requestWebIdDocList = fetchedRequestAndWebId[1]
+      const requestProfileIdList = fetchedRequestAndWebId[2]
+
+      plotCardsOnPage(requestWebIdDocList, requestProfileIdList, requestURIList, "fromPageEntrance", "participant").then(outcome => {
+        respondToRequest(outcome[0], outcome[1]);
+      });
+    });
+  }).catch((err)=> {alert(err.message);});
 }
 
 
@@ -964,7 +1019,7 @@ function respondToRequest(answer_btns, requestContentList){
             getParticipateList(webId).then(fetchedParticipateListRef=> {
               // if the data request is in the regular analysis mode
               if (requestModel.includes('Regular')){
-                const aclDocument = webId.split("profile")[0] + "private/healthcondition.ttl.acl"
+                const aclDocument = webId.split("profile")[0] + "private/healthrecord.ttl.acl"
                 fetchRequestURL(aclDocument).then(AccessControlList => {
                   addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, AccessControlList, collectionSize, endDate, participate_period, requestModel.includes('Privacy')).then(success=> {
                     alert(success);
@@ -978,20 +1033,25 @@ function respondToRequest(answer_btns, requestContentList){
                 // Query the requested data item
                 fetchRequestURL(fetchParticipateRequestId).then(fetchedParticipateRequest=>{
                   const requestDataItem = fetchedParticipateRequest.getSubject(fetchParticipateRequestId).getRef(schema.DataFeedItem);
-                  fetchRequestURL(webId.split('profile')[0]+'private/healthcondition.ttl').then(fetchedParticipantData=> {
+                  fetchRequestURL(webId.split('profile')[0]+'private/healthrecord.ttl').then(fetchedParticipantData=> {
                     // get the latest age data
                     const fetchedParticipantTriple = fetchedParticipantData.getTriples();
+                    let findDataElement = false;
         
                     for (let j = 0; j < fetchedParticipantTriple.length; j++){
                       if (fetchedParticipantTriple[j].predicate.id === requestDataItem){
                         const requestedDataResult = parseInt(fetchedParticipantTriple[j].object.value);
   
-                        addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, collectionSize, endDate, [true, requestDataItem, requestedDataResult]).then(success=> {
+                        addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, null, collectionSize, endDate, participate_period, [true, requestDataItem, requestedDataResult]).then(success=> {
                           alert(success);
+                          findDataElement = true;
                           const fetchedDoc = document.getElementById("fetchedDoc");
                           fetchedDoc.textContent = "Your participation is in privacy-preserving analysis. Nothing has been recorded except the requested data.";
                         });
                       }
+                    }
+                    if (!findDataElement){
+                      alert("Sorry, you don't have the requested data element!")
                     }
                   }).catch((err)=> {alert(err.message);});
                 }).catch((err)=> {alert(err.message);});
@@ -1025,6 +1085,8 @@ function respondToRequest(answer_btns, requestContentList){
             }
   
             const fetchedDoc = document.getElementById("fetchedDoc");
+            fetchedDoc.setAttribute('style', 'white-space: pre;');
+
             let printString = '';
             let requestDataSum = 0;
             let requestDataList = [];
@@ -1037,7 +1099,7 @@ function respondToRequest(answer_btns, requestContentList){
                 const participatePeriod = fetchedparticipantResponse.getSubject(participantResponseId[i]).getDateTime(schema.endDate)
                 if (participatePeriod > new Date(Date.now())){
                   // fetch each participant's healthcondition.ttl
-                  fetchRequestURL(participantWebId.split('profile')[0]+'private/healthcondition.ttl').then(fetchedParticipantData=> {
+                  fetchRequestURL(participantWebId.split('profile')[0]+'private/healthrecord.ttl').then(fetchedParticipantData=> {
                     // get the latest age data
                     const fetchedParticipantTriple = fetchedParticipantData.getTriples();
                     for (let j = 0; j < fetchedParticipantTriple.length; j++){
@@ -1047,7 +1109,7 @@ function respondToRequest(answer_btns, requestContentList){
                         requestDataList.push(parseInt(fetchedParticipantTriple[j].object.value))
                         // Print the results at the end
                         if (i==participantResponseId.length-1 && j==fetchedParticipantTriple.length-1){
-                          fetchedDoc.textContent = printString + '\n Analysis result:' + (requestDataSum/requestDataList.length).toString();
+                          fetchedDoc.textContent = "Results: \r\n" + printString + '\r\n Analysis result:' + (requestDataSum/requestDataList.length).toString();
                         }
                       }
                     }
