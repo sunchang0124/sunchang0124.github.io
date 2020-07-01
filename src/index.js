@@ -302,7 +302,7 @@ async function initialiseRequestList(profile, typeIndex) {
 async function addRequest(fetchProfile, content, requestList) {
 
   // Initialise the new Subject:
-  const newDataElement = requestList.addSubject();
+  var newDataElement = requestList.addSubject();
   // Indicate that the Subject is a schema:dataFeedElement:
   newDataElement.addRef(rdf.type, "http://schema.org/AskAction");
   // Set the Subject's `schema:text` to the actual note contents:
@@ -319,9 +319,10 @@ async function addRequest(fetchProfile, content, requestList) {
   if (content.period) {newDataElement.addDateTime(schema.endDate, content.period);}
   if (content.numInstance) {newDataElement.addInteger("http://schema.org/collectionSize", parseInt(content.numInstance));}
   if (content.model) {newDataElement.addString("http://schema.org/algorithm", content.model);}
-  newDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
+  const createdDate = new Date(Date.now())
+  newDataElement.addDateTime(schema.dateCreated, createdDate);
 
-  const success = await requestList.save([newDataElement]);
+  await requestList.save([newDataElement]);
 
   // add request to register list (currently at chang.inrupt.net/registerlist/requestlist.ttl)
   const registerLink = "https://chang.inrupt.net/registerlist/requestlist.ttl"
@@ -330,10 +331,66 @@ async function addRequest(fetchProfile, content, requestList) {
   const newRegisterRecord = fetchRegisterLinkFile.addSubject();
   newRegisterRecord.addRef(schema.recordedAs, newDataElement.asRef());
   newRegisterRecord.addRef(schema.creator, fetchProfile);
-  await fetchRegisterLinkFile.save([newRegisterRecord]);
 
-  return success;
+  //send to blockchain to get the contract
+  let formdata = new FormData();
+
+  const requestTripleString = "data:text/plain;base64," + btoa(saveRequestLocally(newDataElement, content, fetchProfile, createdDate));
+  const fileTitle = newDataElement.asRef().split('#')[1];
+
+  //Convert dataurl to file object
+  const convertedFile = dataURLtoFile(requestTripleString, fileTitle+'.ttl'); 
+  formdata.append("tripledatafile", convertedFile, fileTitle);
+  const requestOptions = {method: 'POST', body: formdata, redirect: 'follow'};
+  const response = await fetch(`https://blockchain7.kmi.open.ac.uk/rdf/merkle/list/createMerkle?token=${content.token}&title=${fileTitle}`, requestOptions)
+  if (response.ok){
+    const result = await response.text();
+    if (result.includes('contract')){
+      console.log(result);
+      const contractID = result.substring(result.lastIndexOf('"contract":"') + 12,  result.lastIndexOf('","transaction":'));
+      alert("Request is published and saved in the blockchain successfully! You can find it in public/request.ttl");
+      newRegisterRecord.addString(schema.validIn, contractID);
+    }else{alert("Your request is saved but NOT in the validation blockchain")}
+  }else {alert("HTTP-Error: " + response.status);}
+  
+  await fetchRegisterLinkFile.save([newRegisterRecord])
+  return "Thank you for posting a new data request!";
 }
+
+function saveRequestLocally(newDataElement, content, fetchProfile, createdDate){
+
+  const subject = newDataElement.asRef(); // `<${}> <${}> <${}>.\n`
+  let requestTripleString = `<${subject}> <${rdf.type}> <http://schema.org/AskAction>.\n`;
+  requestTripleString += `<${subject}> <http://schema.org/algorithm> "${content.model}".\n`;
+  requestTripleString += `<${subject}> <http://schema.org/collectionSize> ${content.numInstance}.\n`;
+  requestTripleString += `<${subject}> <${schema.creator}> <${fetchProfile}>.\n`;
+  requestTripleString += `<${subject}> <${schema.dateCreated}> "${createdDate}".\n`;
+  requestTripleString += `<${subject}> <${schema.endDate}> "${content.period}".\n`;
+  requestTripleString += `<${subject}> <http://schema.org/purpose> "${content.purpose}".\n`;
+  if (content.data) {
+    for (let i=0; i<content.data.length; i++){
+      requestTripleString += `<${subject}> <${schema.DataFeedItem}> <${content.data[i]}>.\n`;
+    } 
+  }
+
+  return requestTripleString
+}
+
+function dataURLtoFile(dataurl, filename) {
+ 
+  var arr = dataurl.split(','),
+      mime = arr[0].match(/:(.*?);/)[1],
+      bstr = atob(arr[1]), 
+      n = bstr.length, 
+      u8arr = new Uint8Array(n);
+      
+  while(n--){
+      u8arr[n] = bstr.charCodeAt(n);
+  }
+  
+  return new File([u8arr], filename, {type:mime});
+}
+
 
 
 async function fetchRequestURL(fetchRequest) {
@@ -357,7 +414,7 @@ async function getParticipateList(fetchProfile) {
   /* 2. If it doesn't exist, create it. */
   if (participateListEntryList.length == 0) {
     initialiseParticipateList(profile, privateTypeIndex).then(participateList => {
-      alert("New file 'private/participation.ttl'is created!");
+      alert("As this is your first time to participate in a data request, we have created 'private/participation.ttl'is for you! Please approve the request again. ");
       return participateList;
     });
   }
@@ -409,8 +466,8 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
 
   // check if the participant already responded to the data request
   for (let i =0;i<responseUser.length;i++){
-    if (responseUser[i] == participateRequestId){
-      const responseUserExisted = true;
+    if (responseUser[i].getRef("http://schema.org/RsvpResponseYes") == participateRequestId){
+      responseUserExisted = true;
     }
   }
 
@@ -438,7 +495,7 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
             const responserWebId = requestList.getSubject(participateRequestId).getRef(schema.creator);
 
             newRequestAccessControl.addRef(rdf.type, acl.Authorization);
-            newRequestAccessControl.addRef(acl.accessTo, "healthcondition.ttl");
+            newRequestAccessControl.addRef(acl.accessTo, "healthrecord.ttl");
             newRequestAccessControl.addRef(acl.agent, responserWebId);
             newRequestAccessControl.addRef(acl.mode, acl.Read);
             newRequestAccessControl.addDateTime(schema.endDate, participate_period);
@@ -483,11 +540,12 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
             const participateSuccess = await participateList.save([newParticipateDataElement]);
           }
 
-          return "Success!";
-        }else{alert("Participation end date has to be later than today.")}
-      }else{alert("You are in the participates list already.")}
-    }else{alert("Sorry, request end date has expired.")}
-  }else{alert("Sorry, request has enough participants.")}
+          return true;
+
+        }else{alert("Participation end date has to be later than today.")};
+      }else{alert("You are in the participates list already.")};
+    }else{alert("Sorry, request end date has expired.")};
+  }else{alert("Sorry, request has enough participants.")};
 }
 
 function searchTermsNamespaces(resultObj, addTripleSearch, nameSpace){
@@ -526,6 +584,9 @@ function writeAllRequest(profile, requestTriples, fetchRequest){
     }
   }
   requestContent.dataElement = "Requested data: "+ dataElementList;}
+  if (Object.keys(requestContent).length < 2){
+    requestContent = false;
+  }
   return requestContent
 }
   
@@ -541,6 +602,7 @@ async function generateCards(requestContentList, userRole){
   div_cardsContainer.className = "ui cards";
   div_cardsContainer.id = "cardsContainer";
   document.getElementById('Container').appendChild(div_cardsContainer);
+  
 
   for(var i=0; i < requestContentList.length; i++){
 
@@ -647,27 +709,29 @@ async function generateCards(requestContentList, userRole){
       div_privacyButton.textContent = "Secure analysis";
       document.getElementById('buttonsID'+i.toString()).appendChild(div_privacyButton);
     }
-    
   };
-  return requestContentList
+  return requestContentList;
 };
 
 async function plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, option, userRole){
   var requestContentList = [];
-  console.log(findAllSubjects)
+
   if (option === "fromPageEntrance"){
     for (let i=0; i<findAllSubjects.length; i++){
       const eachProfile = webIdDoc[i].getSubject(profileWebID[i]);
-      requestContentList.push(writeAllRequest(eachProfile, findAllSubjects[i].fetchedRequestDoc.getTriples(), findAllSubjects[i].fetchedRequestID));
+      const singleRequest = writeAllRequest(eachProfile, findAllSubjects[i].fetchedRequestDoc.getTriples(), findAllSubjects[i].fetchedRequestID)
+      if (singleRequest){requestContentList.push(singleRequest);}
     }
   }else if (option === "fromWebID"){
     const profile = webIdDoc.getSubject(profileWebID);
     for (let i=0; i<findAllSubjects.length; i++){
-      requestContentList.push(writeAllRequest(profile, findAllSubjects[i].getTriples(), findAllSubjects[i].asRef()));
+      const singleRequest = writeAllRequest(profile, findAllSubjects[i].getTriples(), findAllSubjects[i].asRef())
+      if (singleRequest){requestContentList.push(singleRequest);}
     }
   }else{
     const profile = webIdDoc.getSubject(profileWebID);
-      requestContentList.push(writeAllRequest(profile, findAllSubjects, option));
+    const singleRequest = writeAllRequest(profile, findAllSubjects, option)
+    if (singleRequest){requestContentList.push(singleRequest);}
   }
 
   requestContentList = await generateCards(requestContentList, userRole);
@@ -714,7 +778,7 @@ if (page === "participate.html"){
         respondToRequest(outcome[0], outcome[1]);
       });
     });
-  }).catch((err)=> {alert(err.message);});
+  });
 }
 
 
@@ -757,16 +821,35 @@ searchIcons.forEach(function(each_search){
 });
 
 
-
-
 // Button Choice 
 btns.forEach(function(btn) {
   btn.addEventListener("click", function(e){
     e.preventDefault();
     const styles = e.currentTarget.classList;
+    // Get blockchain user and passwords
+    if (styles.contains('bcTokenLogin')){
+      const bcTokenUser = document.getElementById("bcTokenUser").value;
+      const bcTokenPassword = document.getElementById("bcTokenPassword").value;
+      const tokenMessage = document.getElementById("tokenMessage");
+      tokenMessage.setAttribute("style", "word-wrap: break-word");
+      const requestOptions = {method: 'POST', redirect: 'follow'};
+
+      fetch(`https://blockchain7.kmi.open.ac.uk/rdf/users/signin?username=${bcTokenUser}&password=${bcTokenPassword}`, requestOptions)
+        .then(response => response.text())
+        .then(result => {
+          if (result.includes("token")){
+            const bcToken = result.substring(result.lastIndexOf('{"token":"') + 10, result.lastIndexOf('"')); 
+            tokenMessage.textContent = " Please save the token and it lasts for 5 hours. \n Your token is " + bcToken;
+            console.log(result)
+          }else{
+            alert("Username or password is incorrect!")
+          }
+        })
+        .catch(error => alert('error', error));
+    }
 
     // Fetch data from the files all triples or objects
-    if (styles.contains('fetchObjects') || styles.contains('fetchTriples')) {
+    else if (styles.contains('fetchObjects') || styles.contains('fetchTriples')) {
 
       if (styles.contains('fetchTriples')){
         var fetchFrom = document.getElementById("fetchFromTriples").value;
@@ -931,11 +1014,12 @@ btns.forEach(function(btn) {
         const request_numInstance = document.getElementById("input_numInstance").value;
         const request_obj = document.getElementById("input_model")
         const request_model = request_obj.options[request_obj.selectedIndex].text;
+        const request_input_token = document.getElementById("input_token").value;
     
-        const addRequestContent = {'purpose':request_purpose, 'data':request_data, 'period':request_period, 'numInstance':request_numInstance, 'model':request_model};
+        const addRequestContent = {'purpose':request_purpose, 'data':request_data, 'period':request_period, 'numInstance':request_numInstance, 'model':request_model, 'token':request_input_token};
         getRequestList(fetchProfile).then(fetchedRequestListRef => {
-          addRequest(fetchProfile, addRequestContent, fetchedRequestListRef).then(success => {
-            alert("Request is published successfully! You can find it in public/request.ttl ");
+          addRequest(fetchProfile, addRequestContent, fetchedRequestListRef).then(outcome => {
+            alert(outcome);
           });
         });
       });
@@ -1022,11 +1106,11 @@ function respondToRequest(answer_btns, requestContentList){
                 const aclDocument = webId.split("profile")[0] + "private/healthrecord.ttl.acl"
                 fetchRequestURL(aclDocument).then(AccessControlList => {
                   addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, AccessControlList, collectionSize, endDate, participate_period, requestModel.includes('Privacy')).then(success=> {
-                    alert(success);
-                    const fetchedDoc = document.getElementById("fetchedDoc");
-                    fetchedDoc.textContent = "Your participation is recorded. \n Please give requester (viewer) access to your data file.";
+                    if (success){
+                      alert("Your participation is recorded. Access to your 'healthrecord.ttl' is granted to the researcher'");
+                    }
                   });
-                }).catch((err)=> {alert("Please turn on your file specific sharing.");});
+                }).catch(()=> {alert("If you have given this SOLID App 'Control' Access, please turn on specific sharing for your 'healthrecord.ttl' file .");});
               }
               // if the data request is in the privacy-preserving mode
               else if (requestModel.includes('Privacy')){
@@ -1036,22 +1120,17 @@ function respondToRequest(answer_btns, requestContentList){
                   fetchRequestURL(webId.split('profile')[0]+'private/healthrecord.ttl').then(fetchedParticipantData=> {
                     // get the latest age data
                     const fetchedParticipantTriple = fetchedParticipantData.getTriples();
-                    let findDataElement = false;
         
                     for (let j = 0; j < fetchedParticipantTriple.length; j++){
                       if (fetchedParticipantTriple[j].predicate.id === requestDataItem){
                         const requestedDataResult = parseInt(fetchedParticipantTriple[j].object.value);
   
                         addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, null, collectionSize, endDate, participate_period, [true, requestDataItem, requestedDataResult]).then(success=> {
-                          alert(success);
-                          findDataElement = true;
-                          const fetchedDoc = document.getElementById("fetchedDoc");
-                          fetchedDoc.textContent = "Your participation is in privacy-preserving analysis. Nothing has been recorded except the requested data.";
+                          if (success){
+                            alert("Your participation is in privacy-preserving analysis. Nothing has been recorded except the requested data.");
+                          }
                         });
                       }
-                    }
-                    if (!findDataElement){
-                      alert("Sorry, you don't have the requested data element!")
                     }
                   }).catch((err)=> {alert(err.message);});
                 }).catch((err)=> {alert(err.message);});
@@ -1065,62 +1144,65 @@ function respondToRequest(answer_btns, requestContentList){
       else if (style.contains('rglLearning')) {
         const analyzeRequest = selectedRequest.url; 
         const fetchRequest = analyzeRequest.split("#")[0];
-        
-        fetchRequestURL(fetchRequest).then(fetchedRequestListRef=> {
-          // Need to test in the future 
-          const collectionSize = fetchedRequestListRef.getSubject(analyzeRequest).getInteger(schema.collectionSize);
-          const requestModel = fetchedRequestListRef.getSubject(analyzeRequest).getString("http://schema.org/algorithm");
-  
-          // analyze data from regular request, 
-          if (requestModel.includes("Regular")){
-            const requestDataItem = fetchedRequestListRef.getSubject(analyzeRequest).getRef(schema.DataFeedItem);
-            const getRequestTriples = fetchedRequestListRef.getTriples();
-            
-            // Find all participants response who participate the request
-            let participantResponseId = [];
-            for (let i = 0; i < getRequestTriples.length; i++){
-              if (getRequestTriples[i].predicate.id === "http://schema.org/RsvpResponseYes" && getRequestTriples[i].object.id === analyzeRequest){
-                participantResponseId.push(getRequestTriples[i].subject.id);  
-              }
-            }
-  
-            const fetchedDoc = document.getElementById("fetchedDoc");
-            fetchedDoc.setAttribute('style', 'white-space: pre;');
 
-            let printString = '';
-            let requestDataSum = 0;
-            let requestDataList = [];
-  
-            for (let i = 0; i < participantResponseId.length; i++){
-              // Fetch each response in the request.ttl
-              fetchRequestURL(participantResponseId[i]).then(fetchedparticipantResponse=> {
-                // Find the healthcondition.ttl
-                const participantWebId = fetchedparticipantResponse.getSubject(participantResponseId[i]).getRef(schema.participant)
-                const participatePeriod = fetchedparticipantResponse.getSubject(participantResponseId[i]).getDateTime(schema.endDate)
-                if (participatePeriod > new Date(Date.now())){
-                  // fetch each participant's healthcondition.ttl
-                  fetchRequestURL(participantWebId.split('profile')[0]+'private/healthrecord.ttl').then(fetchedParticipantData=> {
-                    // get the latest age data
-                    const fetchedParticipantTriple = fetchedParticipantData.getTriples();
-                    for (let j = 0; j < fetchedParticipantTriple.length; j++){
-                      if (fetchedParticipantTriple[j].predicate.id === requestDataItem){
-                        printString += fetchedParticipantTriple[j].object.id + '\r\n'; //fetchedParticipantTriple[j].subject.id
-                        requestDataSum += parseInt(fetchedParticipantTriple[j].object.value);
-                        requestDataList.push(parseInt(fetchedParticipantTriple[j].object.value))
-                        // Print the results at the end
-                        if (i==participantResponseId.length-1 && j==fetchedParticipantTriple.length-1){
-                          fetchedDoc.textContent = "Results: \r\n" + printString + '\r\n Analysis result:' + (requestDataSum/requestDataList.length).toString();
+        fetchRequestURL(fetchRequest).then(fetchedRequestListRef=> {
+          const validationOutcome = validateRequest(fetchedRequestListRef, analyzeRequest)
+          if (validationOutcome){
+            // Need to test in the future 
+            const collectionSize = fetchedRequestListRef.getSubject(analyzeRequest).getInteger(schema.collectionSize);
+            const requestModel = fetchedRequestListRef.getSubject(analyzeRequest).getString("http://schema.org/algorithm");
+
+            // analyze data from regular request, 
+            if (requestModel.includes("Regular")){
+              const requestDataItem = fetchedRequestListRef.getSubject(analyzeRequest).getRef(schema.DataFeedItem);
+              const getRequestTriples = fetchedRequestListRef.getTriples();
+              
+              // Find all participants response who participate the request
+              let participantResponseId = [];
+              for (let i = 0; i < getRequestTriples.length; i++){
+                if (getRequestTriples[i].predicate.id === "http://schema.org/RsvpResponseYes" && getRequestTriples[i].object.id === analyzeRequest){
+                  participantResponseId.push(getRequestTriples[i].subject.id);  
+                }
+              }
+
+              const fetchedDoc = document.getElementById("fetchedDoc");
+              fetchedDoc.setAttribute('style', 'white-space: pre;');
+
+              let printString = '';
+              let requestDataSum = 0;
+              let requestDataList = [];
+
+              for (let i = 0; i < participantResponseId.length; i++){
+                // Fetch each response in the request.ttl
+                fetchRequestURL(participantResponseId[i]).then(fetchedparticipantResponse=> {
+                  // Find the healthcondition.ttl
+                  const participantWebId = fetchedparticipantResponse.getSubject(participantResponseId[i]).getRef(schema.participant)
+                  const participatePeriod = fetchedparticipantResponse.getSubject(participantResponseId[i]).getDateTime(schema.endDate)
+                  if (participatePeriod > new Date(Date.now())){
+                    // fetch each participant's healthcondition.ttl
+                    fetchRequestURL(participantWebId.split('profile')[0]+'private/healthrecord.ttl').then(fetchedParticipantData=> {
+                      // get the latest age data
+                      const fetchedParticipantTriple = fetchedParticipantData.getTriples();
+                      for (let j = 0; j < fetchedParticipantTriple.length; j++){
+                        if (fetchedParticipantTriple[j].predicate.id === requestDataItem){
+                          printString += fetchedParticipantTriple[j].object.id + '\r\n'; //fetchedParticipantTriple[j].subject.id
+                          requestDataSum += parseInt(fetchedParticipantTriple[j].object.value);
+                          requestDataList.push(parseInt(fetchedParticipantTriple[j].object.value))
+                          // Print the results at the end
+                          if (i==participantResponseId.length-1 && j==fetchedParticipantTriple.length-1){
+                            fetchedDoc.textContent = "Results: \r\n" + printString + '\r\n Analysis result:' + (requestDataSum/requestDataList.length).toString();
+                          }
                         }
                       }
-                    }
-                  }).catch((err)=> {alert(err.message);});
-                }else{alert("Participation period of "+ participantResponseId[i].toString + " has expired!")}
-              }).catch((err)=> {alert(err.message);});
+                    }).catch((err)=> {alert(err.message);});
+                  }else{alert("Participation period of "+ participantResponseId[i].toString + " has expired!")}
+                }).catch((err)=> {alert(err.message);});
+              }
             }
-          }
-          else if (requestModel.includes("Privacy")){
-            alert("Your request needs privacy-preserving analysis. Please click 'PRIVACY-PRESERVING ANALYSIS button!");
-          }
+            else if (requestModel.includes("Privacy")){
+              alert("Your request needs privacy-preserving analysis. Please click 'PRIVACY-PRESERVING ANALYSIS button!");
+            }
+          }else{alert("You cannot do analysis on the data because your request alidation is failed!")}
         }).catch((err)=> {alert(err.message);});
       }
   
@@ -1169,18 +1251,60 @@ function respondToRequest(answer_btns, requestContentList){
           else if (requestModel.includes("Regular")){alert("Your request needs regular analysis. Please click 'REGULAR ANALYSIS button!");}
         }).catch((err)=> {alert(err.message);});
       }
-  
-      // analyze data from privacy-preserving data request
-      // else if (styles.contains('testing')) {
-      //   const fetchRequest = document.getElementById("fetchFrom").value;
-        
-      //   fetchRequestURL(fetchRequest).then(fetchedRequestListRef=> {
-      //     console.log(fetchedRequestListRef)
-      //   });
-      // }
     });
   });
 
 }
 
+function saveRequestForValidation(fetchedRequestListRef, analyzeRequest){
 
+  const subjectTripe = fetchedRequestListRef.getSubject(analyzeRequest);
+  const subject = subjectTripe.asRef(); // `<${}> <${}> <${}>.\n`
+  
+  let requestTripleString = `<${subject}> <${rdf.type}> <${subjectTripe.getRef(rdf.type)}>.\n`;
+  requestTripleString += `<${subject}> <http://schema.org/algorithm> "${subjectTripe.getString("http://schema.org/algorithm")}".\n`;
+  requestTripleString += `<${subject}> <http://schema.org/collectionSize> ${subjectTripe.getInteger(schema.collectionSize)}.\n`;
+  requestTripleString += `<${subject}> <${schema.creator}> <${subjectTripe.getRef(schema.creator)}>.\n`;
+  requestTripleString += `<${subject}> <${schema.dateCreated}> "${subjectTripe.getDateTime(schema.dateCreated)}".\n`;
+  requestTripleString += `<${subject}> <${schema.endDate}> "${subjectTripe.getDateTime(schema.endDate)}".\n`;
+  requestTripleString += `<${subject}> <http://schema.org/purpose> "${subjectTripe.getString("http://schema.org/purpose")}".\n`;
+  const dataElementList = subjectTripe.getAllRefs(schema.DataFeedItem);
+  if (dataElementList) {
+    for (let i=0; i<dataElementList.length; i++){
+      requestTripleString += `<${subject}> <${schema.DataFeedItem}> <${dataElementList[i]}>.\n`;
+    } 
+  }
+  return requestTripleString
+}
+
+
+async function validateRequest(fetchedRequestListRef, analyzeRequest){
+  const registerFileURL = "https://chang.inrupt.net/registerlist/requestlist.ttl";
+  const fetchRegisterRecord = await fetchDocument(registerFileURL);
+  const contractID = fetchRegisterRecord.findSubject(schema.recordedAs, analyzeRequest).getString(schema.validIn);
+  // console.log(fetchRegisterRecord.findSubject(schema.recordedAs, analyzeRequest).getTriples())
+
+  if (contractID){
+    //send to blockchain to validate the request
+    let formdata = new FormData();
+
+    const requestTripleString = "data:text/plain;base64," + btoa(saveRequestForValidation(fetchedRequestListRef, analyzeRequest));
+    const fileTitle = analyzeRequest.split('#')[1];
+    const token = document.getElementById("input_token").value;
+
+    //Convert dataurl to file object
+    const convertedFile = dataURLtoFile(requestTripleString, fileTitle+'.ttl'); 
+
+    formdata.append("data", convertedFile, fileTitle);
+    const requestOptions = {method: 'POST', body: formdata, redirect: 'follow'};
+
+    const response = await fetch(`https://blockchain7.kmi.open.ac.uk/rdf/merkle/validate/set?token=${token}&contract=${contractID}`, requestOptions)
+    if (response.ok){
+      const result = await response.text();
+      console.log(result);
+      alert("Validation Passed!");
+      return true;
+    }else {alert("HTTP-Error: " + response.status); return false;}
+  }else{alert("Your request is not in the validation blockchain"); return true;}
+
+}

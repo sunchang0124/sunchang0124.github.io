@@ -10,12 +10,15 @@
   "license": "MIT",
   "dependencies": {
     "@types/solid-auth-client": "^2.4.0",
+    "fs": "0.0.1-security",
     "rdf-namespaces": "^1.8.0",
+    "request": "^2.88.2",
     "semantic-ui": "^2.4.2",
     "solid-auth-client": "^2.4.1",
     "tripledoc": "^4.3.4"
   },
   "devDependencies": {
+    "@types/request": "^2.48.5",
     "webpack": "^4.43.0",
     "webpack-cli": "^3.3.12"
   }

@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 
   <!-- Site Properties -->
-  <title>Homepage - Semantic</title>
+  <title>Homepage - C.</title>
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/reset.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/site.css">
 
@@ -16,6 +16,7 @@
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/header.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/image.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/menu.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/modal.css">
 
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/divider.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/dropdown.css">
@@ -141,6 +142,10 @@
         .sidebar('attach events', '.toc.item')
       ;
 
+      $('.ui.basic.modal')
+        .modal('show')
+      ;
+
     })
   ;
   </script>
@@ -178,6 +183,7 @@
         <a class="item" href="request.html">Request</a>
         <div class="right item">
           <a class="ui inverted login button" href="login.html" id="logStatusPage">Log in</a>
+          <a class="ui inverted token button" href="token.html" id="tokenPage">Get token</a>
         </div>
       </div>
     </div>
