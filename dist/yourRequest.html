@@ -22,7 +22,7 @@
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/label.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/form.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/card.css">
-  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/modal.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/progress.css">
 
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/divider.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/dropdown.css">
@@ -230,10 +230,10 @@
 
 
   <div class="ui vertical stripe segment">
-    <h4 class="ui horizontal transparent divider">
+    <!-- <h4 class="ui horizontal transparent divider">
       <button class="ui queryRequest forAnalysis button listen">All requests</button>
       <button class="ui blue queryRequest forAnalysis button listen">Ongoing requests</button>
-    </h4>
+    </h4> -->
     <div class="ui center aligned container">
       <div class="field">
         <label>Token:</label>
@@ -242,8 +242,7 @@
       <p id="fetchedDoc"></p>
       <br></br>
     </div>
-    
-
+    <div class="ui active centered inline loader" style="display: block;" id="loader"></div>
     <div class="ui container" id="Container">
     </div>
   </div>

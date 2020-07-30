@@ -23,6 +23,7 @@
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/form.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/card.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/modal.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/loader.css">
 
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/divider.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/dropdown.css">
@@ -167,21 +168,6 @@
   ;
   </script>
 
-<script>
-  function displayFunction(item) {
-    if(item == "positiveMessage"){
-      var positiveMessage = document.getElementById("positiveMessage");
-      positiveMessage.style.display = "block";
-    }else if (item == "infoMessage"){
-      var infoMessage = document.getElementById("infoMessage");
-      infoMessage.style.display = "block";
-    }else if (item == "requestMessage"){
-      var requestMessage = document.getElementById("requestMessage");
-      requestMessage.style.display = "block";
-    }
-  }
-</script>
-
 </head>
 <body>
 
@@ -226,10 +212,9 @@
         Participate in a data request
       </h1>
       <h3>View and participate in a data request to help research community.</h3>
-      <div class="ui primary button"> How-to-Participate   Video<i class="right arrow icon"></i></div>
+      <a class="ui primary button" href="register.html"> Register to be a participant<i class="right arrow icon"></i></a>
     </div>
   </div>
-
 
   <div class="ui vertical stripe segment">
     <div class="ui container">
@@ -244,9 +229,9 @@
       </div>
       <h4 class="ui divider"></h4>
     </div>
-      
-    <div class="ui container" id="Container">
-    </div>
+    <!-- <div class="ui active centered inline loader"></div> -->
+    <div class="ui active centered inline loader" style="display: block;" id="loader"></div>
+    <div class="ui container" id="Container"></div>
   </div>
 
   <div class="ui inverted vertical footer segment">
