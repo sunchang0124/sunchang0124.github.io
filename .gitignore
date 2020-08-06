@@ -15,4 +15,4 @@ solid_login.yaml
 *.log
 
 ### Package files/folder
-/node_modules/*
+node_modules/
