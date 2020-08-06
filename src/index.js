@@ -5,13 +5,15 @@ import { solid, schema, space, rdf, foaf, acl, skos, dc, dct, vcard} from 'rdf-n
 
 import data from "@solid/query-ldflex";
 import { literal, namedNode } from "@rdfjs/data-model";
-const Docker = require('node-docker-api').Docker;
-const tar = require('tar-stream');
+const yaml = require('js-yaml');
+
+import { sign } from "tweetnacl";
+import {decodeUTF8, encodeBase64, decodeBase64} from "tweetnacl-util";
 
 // Global variables
 var registerFileURL = "https://chang.inrupt.net/registerlist/requestlist.ttl";
 var registerParticipationFolder = "https://chang.inrupt.net/registerlist/participationlist/";
-var registerTriggerMessageURL = "https://chang.inrupt.net/inbox/triggermessage.ttl";
+var registerTriggerMessageFolder = "https://chang.inrupt.net/inbox/triggermessage/";
 var podServerURL = "https://chang.inrupt.net/profile/card#me";
 var registerIndexRef = "https://chang.inrupt.net/settings/registerIndex.ttl";
 var userRegisterRef = "https://chang.inrupt.net/registerlist/userregister.ttl"
@@ -21,10 +23,9 @@ const btns = document.querySelectorAll(".listen.button");
 const btn_login = document.querySelectorAll(".login.button");
 const searchIcons= document.querySelectorAll(".link");
 
-// request page show all existing data request
+/* Auto-run based on different page (START) */
 var page = window.location.pathname.split("/").pop();
 if (page === "participate.html"){
-  // const registerFileURL = "https://chang.inrupt.net/registerlist/requestlist.ttl";
   fetchRequestURL(registerFileURL).then(fetchRegisterRecord => {
     fetchRegisterList(fetchRegisterRecord).then(fetchedRequestAndWebId =>{
 
@@ -49,135 +50,28 @@ if (page === "participate.html"){
       });
     }).catch((err)=> {alert(err.message);});
   });
-}else if (page === "podProvider.html"){
-  let timerId = setTimeout(function tick() {
-    getWebId().then(profileWebID => {
-      if (profileWebID === podServerURL){
-        podProviderInboxList(registerTriggerMessageURL).then(statusOutput=>{
-          alert(statusOutput);
-          timerId = setTimeout(tick, 3000);
-        });
-      }
-    });
-  }, 3000);
-}else if (page === "dockerTest.html"){
-  
-  const promisifyStream = (stream) => new Promise((resolve, reject) => {
-    stream.on('data', (d) => console.log(d.toString()))
-    stream.on('end', resolve)
-    stream.on('error', reject)
-  })
-  
-  const docker = new Docker({ socketPath: '/var/run/docker.sock' });
-  // const docker = new Docker({host: 'http:/v1.40'});
-
-  docker.info().then(alert("done"));
-  // docker.image.create({}, { fromImage: 'ubuntu' })
-  //   .then(stream => promisifyStream(stream))
-  //   .then(() => docker.image.get('ubuntu').status())
-  //   .then(image => image.history())
-  //   .then(events => console.log(events))
-  //   .catch(error => console.log(error))
 }
+/* Auto-run based on different page (END) */
 
+//ARRANGE
+//*** Research sends trigger msg to server (START) ***//
+async function sendTriggerMsg(msgLocation, selectedRequest){
 
-async function addObjectFunction(subject, predicate, object){
-  await data[subject][predicate].add(object);
-}
-
-async function resultSending(singleRequesterWebID, singleRequestURL, serverInboxStatus, finalResult){
-  // Update to server inbox
-  await data[serverInboxStatus.asRef()][rdf.type].set(namedNode(schema.DeactivateAction));
-
-  // Send to requester inbox
-  const singleRequesterInbox = singleRequesterWebID.split("profile/card#me")[0] + "inbox/" + singleRequestURL.split("#")[1] + ".ttl";
-  data[singleRequesterInbox].put();
-  await data[singleRequesterInbox][rdf.type].add(namedNode(schema.resultComment));
+  // Create a new message ttl file in inbox
+  data[msgLocation].put()
+  // Create the message content
+  await data[msgLocation][schema.actionStatus].add(namedNode(schema.ActivateAction));
+  await data[msgLocation][schema.target].add(namedNode(selectedRequest.url));
+  await data[msgLocation][schema.creator].add(namedNode(selectedRequest.webid));
   const currentDateTime = new Date(Date.now())
-  await data[singleRequesterInbox][schema.dateCreated].add(literal(currentDateTime.toISOString(), "http://www.w3.org/2001/XMLSchema#dateTime"));
-  await data[singleRequesterInbox][schema.result].add(literal(finalResult));
-
-  return "Sending results is successful!"
+  await data[msgLocation][schema.dateCreated].add(literal(currentDateTime.toISOString(), "http://www.w3.org/2001/XMLSchema#dateTime"));
+  await data[selectedRequest.url][schema.actionStatus].add(namedNode(schema.ActivateAction));
+  return "Got it! Your analysis request has been sent to the Pod Serve!"
 }
-
-async function podProviderInboxList(registerTriggerMessageURL){
-  const inboxListOrderDoc = await fetchDocument(registerTriggerMessageURL);
-  const inboxListOrderSubjects = inboxListOrderDoc.findSubjects(rdf.type, schema.ActivateAction); //DeactivateAction
-  // const requesterProfileWebID = [];
-  // const requesterWebIdDoc = []
-  // const requestTriples = [];
-  if (inboxListOrderSubjects.length == 0){
-    return "No analysis trigger message needs to be processed!";
-  }else{
-    for (let i=0;i<inboxListOrderSubjects.length;i++){
-
-      const singleRequestURL = inboxListOrderSubjects[i].getRef(schema.target);
-      const singleRequesterWebID = inboxListOrderSubjects[i].getRef(schema.creator);
-
-      const registerResponseFileURL = registerParticipationFolder + singleRequestURL.split("#")[1] + '.ttl';
-      
-      fetchRequestURL(singleRequestURL.split("#")[0]).then(fetchedRequestListRef=> {
-          validationProcess(fetchedRequestListRef, singleRequestURL, singleRequesterWebID).then(validationOutcome=> {
-          if (validationOutcome){
-            let requestDataSum = 0;
-            let requestDataList = [];
-            const requestDataItem = fetchedRequestListRef.getSubject(singleRequestURL).getRef(schema.DataFeedItem);
-
-            fetchRequestURL(registerResponseFileURL).then(fetchedRegisterResponseFile=> {
-              // Find all participants response who participate the request
-              const allResponsesSubjects = fetchedRegisterResponseFile.findSubjects()
-              const uniqueResponsesSubjects = [];
-              for (let i=0; i<allResponsesSubjects.length; i++){
-                // Here should add participant's credential verification!
-                if (!uniqueResponsesSubjects.includes(allResponsesSubjects[i])){
-                  uniqueResponsesSubjects.push(allResponsesSubjects[i]);
-                }
-              }
-                
-              for (let i = 0; i < uniqueResponsesSubjects.length; i++){
-                if (uniqueResponsesSubjects[i].getRef("http://schema.org/RsvpResponseYes") === singleRequestURL){
-                  const participantWebId = uniqueResponsesSubjects[i].getRef(schema.participant);  
-                  const participatePeriod = uniqueResponsesSubjects[i].getDateTime(schema.endDate);  
-
-                  if (participatePeriod > new Date(Date.now())){
-                    // fetch each participant's healthcondition.ttl
-                    fetchRequestURL(participantWebId.split('profile')[0]+'private/healthrecord.ttl').then(fetchedParticipantData=> {
-                      // get the latest age data
-                      const fetchedParticipantTriple = fetchedParticipantData.getTriples();
-                      for (let j = 0; j < fetchedParticipantTriple.length; j++){
-                        if (fetchedParticipantTriple[j].predicate.id === requestDataItem){
-                          requestDataSum += parseInt(fetchedParticipantTriple[j].object.value);
-                          requestDataList.push(parseInt(fetchedParticipantTriple[j].object.value));
-                          // Print the results at the end
-                          if (i==uniqueResponsesSubjects.length-1 && j==fetchedParticipantTriple.length-1){
-                            const finalResult = (requestDataSum/requestDataList.length);
-                            console.log(finalResult)
-                            resultSending(singleRequesterWebID, singleRequestURL, inboxListOrderSubjects[i], finalResult).then(status=>{
-                              return status;
-                            });
-                          }
-                        }
-                      }
-                    }).catch((err)=> {return err.message;});
-                  }else{return "Participation period of "+ uniqueResponsesSubjects[i].toString + " has expired!"}
-                  }// }).catch((err)=> {alert(err.message);});
-              }
-            });
-          }else{return "Request validation is failed. Process is interrupted!"}
-        });
-      });
-    }
-  }
-
-  // plotCardsOnPage(requesterWebIdDoc, requesterProfileWebID, requestTriples, "fromPodProviderInbox", "podProvider").then(outcome => {
-  //   const finalResult = respondToRequest(outcome[0], outcome[1]);
-  //   console.log(inboxListOrderSubjects.asRef());
-  //   await data[inboxListOrderSubjects.asRef()][schema.result].add(literal(finalResult));
-  // });
-}
+//*** Research sends trigger msg to server (END) ***//
 
 
-// ****** Log In and Log Out *********//
+// ****** Log In and Log Out (START) *********//
 async function getWebId() {
 
   /* 1. Check if we've already got the user's WebID and access to their Pod: */
@@ -244,9 +138,10 @@ getWebId().then(webId => {
     document.getElementById("logStatusFollowing").textContent = "Log In";
   }
 });
+// ****** Log In and Log Out (END) *********//
 
 
-// ****** Fetch data from Pod *********//
+// ****** Fetch data from Pod (START) *********//
 async function getTriplesObjects(fetchFrom, fetchSubject, fetchPredicate, option) {
 
   /* 1. Fetch the Document at `webId`: */
@@ -280,9 +175,10 @@ async function getTriplesObjects(fetchFrom, fetchSubject, fetchPredicate, option
     }
   }
 }
+// ****** Fetch data from Pod (END) *********//
 
 
-// ****** Generate table *********//
+// *** Generate table for request cards (START) ***//
 function generateTableHead(table, data) {
   let thead = table.createTHead();
   let row = thead.insertRow();
@@ -315,9 +211,9 @@ function printTable(table, tripleResults, append) {
   }
   generateTable(table, tripleResults);
 }
+// *** Generate table for request cards (END) ***//
 
-
-// ****** Setting up a creating data model *********//
+// *** Setting up a reading and creating data model (START) ***//
 async function getNotesList(profileHead, fileLocation, fileName) {
   const fetchProfile = profileHead + "profile/card#me";
   const webIdDoc = await fetchDocument(fetchProfile);
@@ -408,23 +304,11 @@ async function addNote(profileHead, addedTableDict, notesList) {
     };
   }
   const success = await notesList.save([newDataElement]);
-
-
   return success;
 }
+// *** Setting up a reading and creating data model (END) ***//
 
-// ******************* //
-// Register a new user //
-// ******************* //
-import { sign } from "tweetnacl";
-import {
-  decodeUTF8,
-  encodeUTF8,
-  encodeBase64,
-  decodeBase64
-} from "tweetnacl-util";
-import { final } from "rdf-namespaces/dist/wf";
-
+// *** Register a new user and generate key pairs (START) ***//
 async function generatePublicKeyPair(fetchProfile, userName, affiliance) {
 
   const webIdDoc = await fetchDocument(fetchProfile);
@@ -477,10 +361,10 @@ async function initialiseRegisteredUser(profile, typeIndex, userName, affiliance
   await typeIndex.save([ typeRegistration ]);
   return "Successfully registered!";
 }
+// *** Register a new user and generate key pairs (END) ***//
 
-// **************** //
-// Create a request //
-// **************** //
+
+// *** Read and create data request (START) *** //
 async function getRequestList(fetchProfile) {
 
   const webIdDoc = await fetchDocument(fetchProfile);
@@ -573,7 +457,6 @@ async function addRequest(fetchProfile, content, requestList) {
     await requestList.save([newDataElement]);
 
     // add request to register list 
-    // const registerFileURL = "https://chang.inrupt.net/registerlist/requestlist.ttl"
     const fetchRegisterLinkFile = await fetchDocument(registerFileURL)
     
     const newRegisterRecord = fetchRegisterLinkFile.addSubject();
@@ -583,77 +466,54 @@ async function addRequest(fetchProfile, content, requestList) {
     const requestContent = saveRequestLocally(newDataElement, content, fetchProfile, createdDate);
     const signature = sign.detached(decodeUTF8(requestContent), privateKey);
     newRegisterRecord.addString(schema.validIn, encodeBase64(signature));
-
-    /****************   PAUSE  *****************
-    //send to blockchain to get the contract
-    let formdata = new FormData();
-
-    const requestTripleString = "data:text/plain;base64," + btoa(saveRequestLocally(newDataElement, content, fetchProfile, createdDate));
-    const fileTitle = newDataElement.asRef().split('#')[1];
-
-    //Convert dataurl to file object
-    const convertedFile = dataURLtoFile(requestTripleString, fileTitle+'.ttl'); 
-    formdata.append("tripledatafile", convertedFile, fileTitle);
-    const requestOptions = {method: 'POST', body: formdata, redirect: 'follow'};
-    const response = await fetch(`https://blockchain7.kmi.open.ac.uk/rdf/merkle/list/createMerkle?token=${content.token}&title=${fileTitle}`, requestOptions)
-    if (response.ok){
-      const result = await response.text();
-      if (result.includes('contract')){
-        console.log(result);
-        const contractID = result.substring(result.lastIndexOf('"contract":"') + 12,  result.lastIndexOf('","transaction":'));
-        alert("Request is published and saved in the blockchain successfully! You can find it in public/request.ttl");
-        newRegisterRecord.addString(schema.validIn, contractID);
-      }else{alert("Your request is saved but NOT in the validation blockchain")}
-    }else {alert("HTTP-Error: " + response.status);}
-    ****************  PAUSE END *****************/
     
     await fetchRegisterLinkFile.save([newRegisterRecord])
     return "Thank you for posting a new data request!";
   };
 }
+// *** Read and create data request (END) *** //
 
+// ARRANGE
+// *** Customize time format (START) *** //
+function formatTime (dateTime){
+  var dd = String(dateTime.getDate()).padStart(2, '0');
+  var mm = String(dateTime.getMonth() + 1).padStart(2, '0'); //January is 0!
+  var yyyy = dateTime.getFullYear();
+  var hr = String(dateTime.getHours()+(dateTime.getTimezoneOffset())/60).padStart(2, '0');
+  var min = String(dateTime.getMinutes()).padStart(2, '0');
+  var sec = String(dateTime.getSeconds()).padStart(2, '0');
+  return yyyy + '-' + mm + '-' + dd + 'T' + hr + ':' + min + ':'+ sec+'Z'
+}
+// *** Customize time format (END) *** //
+
+// *** Save data request locally for signing the request (START) *** //
 function saveRequestLocally(newDataElement, content, fetchProfile, createdDate){
 
   const subject = newDataElement.asRef(); // `<${}> <${}> <${}>.\n`
-  let requestTripleString = `<${subject}> <${rdf.type}> <http://schema.org/AskAction>.\n`;
-  requestTripleString += `<${subject}> <http://schema.org/algorithm> "${content.model}".\n`;
-  requestTripleString += `<${subject}> <http://schema.org/collectionSize> ${content.numInstance}.\n`;
-  requestTripleString += `<${subject}> <${schema.creator}> <${fetchProfile}>.\n`;
-  requestTripleString += `<${subject}> <${schema.dateCreated}> "${createdDate.toString().split(" (")[0]}".\n`;
-  requestTripleString += `<${subject}> <${schema.endDate}> "${content.period.toString().split(" (")[0]}".\n`;
-  requestTripleString += `<${subject}> <http://schema.org/purpose> "${content.purpose}".\n`;
+  let requestTripleString = `<${subject}> <${rdf.type}> <http://schema.org/AskAction>.`;
+  requestTripleString += `<${subject}> <http://schema.org/algorithm> ${content.model}.`;
+  requestTripleString += `<${subject}> <http://schema.org/collectionSize> ${content.numInstance}.`;
+  requestTripleString += `<${subject}> <${schema.creator}> <${fetchProfile}>.`;
+  // requestTripleString += `<${subject}> <${schema.dateCreated}> ${formatTime(createdDate)}.`; //${createdDate.toString().split(" (")[0]}
+  // requestTripleString += `<${subject}> <${schema.endDate}> ${formatTime(content.period)}.`;//${content.period.toString().split(" (")[0]}
+  requestTripleString += `<${subject}> <http://schema.org/purpose> ${content.purpose}.`;
   if (content.data) {
     for (let i=0; i<content.data.length; i++){
-      requestTripleString += `<${subject}> <${schema.DataFeedItem}> <${content.data[i]}>.\n`;
+      requestTripleString += `<${subject}> <${schema.DataFeedItem}> <${content.data[i]}>.`;
     } 
   }
-
+  console.log(requestTripleString)
   return requestTripleString
 }
+// *** Save data request locally for signing the request (END) *** //
 
-function dataURLtoFile(dataurl, filename) {
- 
-  var arr = dataurl.split(','),
-      mime = arr[0].match(/:(.*?);/)[1],
-      bstr = atob(arr[1]), 
-      n = bstr.length, 
-      u8arr = new Uint8Array(n);
-      
-  while(n--){
-      u8arr[n] = bstr.charCodeAt(n);
-  }
-  
-  return new File([u8arr], filename, {type:mime});
-}
-
+// *** Fetch document function (START) ***//
 async function fetchRequestURL(fetchRequest) {
   return await fetchDocument(fetchRequest)
 }
+// *** Fetch document function (END) ***//
 
-
-// **************** //
-// Create a participation //
-// **************** //
+// *** Create a participation record (START) ***//
 async function getParticipateList(fetchProfile) {
 
   const webIdDoc = await fetchDocument(fetchProfile);
@@ -829,10 +689,10 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
     }else{alert("Sorry, request end date has expired.")};
   }else{alert("Sorry, request has enough participants.")};
 }
+// *** Create a participation record (END) ***//
 
 
-
-
+// *** Search URI from text (START) ***//
 function searchTermsNamespaces(resultObj, addTripleSearch, nameSpace){
   const getAllKeys = Object.keys(nameSpace);
       getAllKeys.forEach(function(keyName) {
@@ -843,9 +703,45 @@ function searchTermsNamespaces(resultObj, addTripleSearch, nameSpace){
   return resultObj
 }
 
-/**************************
- * Get all request for cards *
- **************************/
+// Namespace Suggestions
+searchIcons.forEach(function(each_search){
+  each_search.addEventListener("click", function(e){
+    e.preventDefault();
+    const styles = e.currentTarget.classList;
+    const tables = document.querySelectorAll(".table");
+
+    if (styles.contains('predicateSuggestion')){
+      var addTripleSearch = document.getElementById("addTriplePredicate").value;
+    }else if (styles.contains('objectSuggestion')){
+      var addTripleSearch = document.getElementById("addTripleObject").value;
+    }
+
+    // GET the URL from the text user put
+    var resultObj = [];
+    if (addTripleSearch){
+      let namespaceList = [schema, foaf, rdf, skos, dc, dct]
+      for (let i=0; i<namespaceList.length; i++){
+        let nameSpace = namespaceList[i];
+        resultObj = searchTermsNamespaces(resultObj, addTripleSearch, nameSpace);
+      }
+    }
+
+    if (resultObj.length==0){
+      resultObj.push({Text:addTripleSearch, FoundURI:"Sorry, we couldn't find matched identifiers(URI)."})
+    }
+
+    tables.forEach(function(table){
+      if (table.classList.contains("searchTable")){
+        printTable(table, resultObj, false);
+      }
+    });
+
+  });
+});
+// *** Search URI from text (END) ***//
+
+
+// *** Write and generate requests to cards (START) ***//
 function writeAllRequest(profile, requestTriples, fetchRequest){
   let requestContent = Object();  
   let dataElementList = []
@@ -1037,7 +933,9 @@ async function generateCards(requestContentList, userRole){
   };
   return requestContentList;
 };
+// *** Write and generate requests to cards (END) ***//
 
+// *** Plot cards on the webpage (START) ***//
 async function plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, option, userRole){
   var requestContentList = [];
 
@@ -1053,12 +951,6 @@ async function plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, option, 
       const singleRequest = writeAllRequest(profile, findAllSubjects[i].getTriples(), findAllSubjects[i].asRef())
       if (singleRequest){requestContentList.push(singleRequest);}
     }
-  // }else if (option === "fromPodProviderInbox"){
-  //   for (let i=0; i<findAllSubjects.length; i++){
-  //     const profile = webIdDoc[i].getSubject(profileWebID[i]);
-  //     const singleRequest = writeAllRequest(profile, findAllSubjects[i].getTriples(), findAllSubjects[i].asRef())
-  //     if (singleRequest){requestContentList.push(singleRequest);}
-  //   }
   }else{
     const profile = webIdDoc.getSubject(profileWebID);
     const singleRequest = writeAllRequest(profile, findAllSubjects, option)
@@ -1075,7 +967,10 @@ async function plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, option, 
 
   return outcome
 }
+// *** Plot cards on the webpage (END) ***//
 
+
+// *** Fetch registered users (START) ***//
 async function fetchRegisterList(fetchRegisterRecord){
   
   const registerRecordSubjects = fetchRegisterRecord.findSubjects();
@@ -1104,10 +999,9 @@ async function fetchRegisterList(fetchRegisterRecord){
   const fetchedRequestAndWebId = [requestURIList, requestWebIdDocList, requestProfileIdList];
   return fetchedRequestAndWebId
 }
+// *** Fetch registered users (END) ***//
 
-/*
-Response to data request button
-*/
+// *** Users respond to data request: approve/decline (START) ***//
 function respondToRequest(answer_btns, requestContentList){
   answer_btns.forEach(function(ans_btn) {
     ans_btn.addEventListener("click", function(e){
@@ -1167,324 +1061,16 @@ function respondToRequest(answer_btns, requestContentList){
           });
         });
       }else if (style.contains('triggerAnalysis')) {
-        const analyzeRequest = selectedRequest.url; 
-        const requestID = analyzeRequest.split("#")[1];
-
-        // Send pod provider a trigger message
-        addObjectFunction(registerTriggerMessageURL+'#'+requestID, rdf.type, namedNode(schema.ActivateAction));
-        addObjectFunction(registerTriggerMessageURL+'#'+requestID, schema.target, namedNode(analyzeRequest));
-        addObjectFunction(registerTriggerMessageURL+'#'+requestID, schema.creator, namedNode(selectedRequest.webid));
-        const currentDateTime = new Date(Date.now())
-        addObjectFunction(registerTriggerMessageURL+'#'+requestID, schema.dateCreated, literal(currentDateTime.toISOString(), "http://www.w3.org/2001/XMLSchema#dateTime"));
-
-        addObjectFunction(analyzeRequest, schema.status, namedNode(schema.ActivateAction));
-
-        alert("Got it! Your analysis request has been sent to the Pod Serve!")
-      }else if (style.contains('proceed')){
-        alert("Proceed function is paused!")
-        // const analyzeRequest = selectedRequest.url; 
-        // const fetchRequest = analyzeRequest.split("#")[0];
-        // const registerResponseFileURL = registerParticipationFolder + analyzeRequest.split("#")[1] + '.ttl';
-
-        // fetchRequestURL(fetchRequest).then(fetchedRequestListRef=> {
-        //   validateRequest(fetchedRequestListRef, analyzeRequest).then(validationOutcome=> {
-        //     if (validationOutcome){
-        //       // Need to test in the future 
-        //       // const collectionSize = fetchedRequestListRef.getSubject(analyzeRequest).getInteger(schema.collectionSize);
-        //       const requestModel = fetchedRequestListRef.getSubject(analyzeRequest).getString("http://schema.org/algorithm");
-
-        //       // analyze data from regular request, 
-        //       if (requestModel.includes("Regular")){
-        //         const fetchedDoc = document.getElementById("fetchedDoc");
-        //         fetchedDoc.setAttribute('style', 'white-space: pre;');
-        //         let printString = '';
-        //         let requestDataSum = 0;
-        //         let requestDataList = [];
-
-        //         const requestDataItem = fetchedRequestListRef.getSubject(analyzeRequest).getRef(schema.DataFeedItem);
-                
-        //         fetchRequestURL(registerResponseFileURL).then(fetchedRegisterResponseFile=> {
-        //           // Find all participants response who participate the request
-        //           const allResponsesSubjects = fetchedRegisterResponseFile.findSubjects()
-        //           const uniqueResponsesSubjects = [];
-        //           for (let i=0; i<allResponsesSubjects.length;i++){
-        //             if (!uniqueResponsesSubjects.includes(allResponsesSubjects[i])){
-        //               uniqueResponsesSubjects.push(allResponsesSubjects[i]);
-        //             }
-        //           }
-                  
-        //           console.log(uniqueResponsesSubjects)
-        //           for (let i = 0; i < uniqueResponsesSubjects.length; i++){
-        //             if (uniqueResponsesSubjects[i].getRef("http://schema.org/RsvpResponseYes") === analyzeRequest){
-
-        //               const participantWebId = uniqueResponsesSubjects[i].getRef(schema.participant);  
-        //               const participatePeriod = uniqueResponsesSubjects[i].getDateTime(schema.endDate);  
-            
-        //               if (participatePeriod > new Date(Date.now())){
-        //                 console.log(new Date(Date.now()))
-        //                 // fetch each participant's healthcondition.ttl
-        //                 fetchRequestURL(participantWebId.split('profile')[0]+'private/healthrecord.ttl').then(fetchedParticipantData=> {
-        //                   // get the latest age data
-        //                   const fetchedParticipantTriple = fetchedParticipantData.getTriples();
-        //                   for (let j = 0; j < fetchedParticipantTriple.length; j++){
-        //                     if (fetchedParticipantTriple[j].predicate.id === requestDataItem){
-        //                       printString += fetchedParticipantTriple[j].object.id + '\r\n'; //fetchedParticipantTriple[j].subject.id
-        //                       requestDataSum += parseInt(fetchedParticipantTriple[j].object.value);
-        //                       requestDataList.push(parseInt(fetchedParticipantTriple[j].object.value));
-        //                       // Print the results at the end
-        //                       if (i==uniqueResponsesSubjects.length-1 && j==fetchedParticipantTriple.length-1){
-        //                         const finalResult = (requestDataSum/requestDataList.length);
-        //                         fetchedDoc.textContent = "Results: \r\n" + printString + '\r\n Analysis result:' + finalResult.toString();
-        //                         return finalResult
-        //                       }
-        //                     }
-        //                   }
-        //                 }).catch((err)=> {alert(err.message);});
-        //               }else{alert("Participation period of "+ uniqueResponsesSubjects[i].toString + " has expired!")}
-        //              }// }).catch((err)=> {alert(err.message);});
-        //           }
-        //         });
-        //       }
-        //       else if (requestModel.includes("Privacy")){
-        //         alert("This request needs privacy-preserving analysis. This function has not been completed!");
-        //       }
-              
-        //     }else{alert("Request validation is failed. Process is interrupted!")}
-        //   });
-        // });
-
-      }
-
-
-    /*
-      // conduct analysis button
-      else if (style.contains('rglLearning')) {
-        const analyzeRequest = selectedRequest.url; 
-        const fetchRequest = analyzeRequest.split("#")[0];
-
-        fetchRequestURL(fetchRequest).then(fetchedRequestListRef=> {
-          const validationOutcome = validateRequest(fetchedRequestListRef, analyzeRequest)
-          if (validationOutcome){
-            // Need to test in the future 
-            const collectionSize = fetchedRequestListRef.getSubject(analyzeRequest).getInteger(schema.collectionSize);
-            const requestModel = fetchedRequestListRef.getSubject(analyzeRequest).getString("http://schema.org/algorithm");
-
-            // analyze data from regular request, 
-            if (requestModel.includes("Regular")){
-              const requestDataItem = fetchedRequestListRef.getSubject(analyzeRequest).getRef(schema.DataFeedItem);
-              const getRequestTriples = fetchedRequestListRef.getTriples();
-              
-              // Find all participants response who participate the request
-              let participantResponseId = [];
-              for (let i = 0; i < getRequestTriples.length; i++){
-                if (getRequestTriples[i].predicate.id === "http://schema.org/RsvpResponseYes" && getRequestTriples[i].object.id === analyzeRequest){
-                  participantResponseId.push(getRequestTriples[i].subject.id);  
-                }
-              }
-
-              const fetchedDoc = document.getElementById("fetchedDoc");
-              fetchedDoc.setAttribute('style', 'white-space: pre;');
-
-              let printString = '';
-              let requestDataSum = 0;
-              let requestDataList = [];
-
-              for (let i = 0; i < participantResponseId.length; i++){
-                // Fetch each response in the request.ttl
-                fetchRequestURL(participantResponseId[i]).then(fetchedparticipantResponse=> {
-                  // Find the healthcondition.ttl
-                  const participantWebId = fetchedparticipantResponse.getSubject(participantResponseId[i]).getRef(schema.participant)
-                  const participatePeriod = fetchedparticipantResponse.getSubject(participantResponseId[i]).getDateTime(schema.endDate)
-                  if (participatePeriod > new Date(Date.now())){
-                    // fetch each participant's healthcondition.ttl
-                    fetchRequestURL(participantWebId.split('profile')[0]+'private/healthrecord.ttl').then(fetchedParticipantData=> {
-                      // get the latest age data
-                      const fetchedParticipantTriple = fetchedParticipantData.getTriples();
-                      for (let j = 0; j < fetchedParticipantTriple.length; j++){
-                        if (fetchedParticipantTriple[j].predicate.id === requestDataItem){
-                          printString += fetchedParticipantTriple[j].object.id + '\r\n'; //fetchedParticipantTriple[j].subject.id
-                          requestDataSum += parseInt(fetchedParticipantTriple[j].object.value);
-                          requestDataList.push(parseInt(fetchedParticipantTriple[j].object.value))
-                          // Print the results at the end
-                          if (i==participantResponseId.length-1 && j==fetchedParticipantTriple.length-1){
-                            fetchedDoc.textContent = "Results: \r\n" + printString + '\r\n Analysis result:' + (requestDataSum/requestDataList.length).toString();
-                          }
-                        }
-                      }
-                    }).catch((err)=> {alert(err.message);});
-                  }else{alert("Participation period of "+ participantResponseId[i].toString + " has expired!")}
-                }).catch((err)=> {alert(err.message);});
-              }
-            }
-            else if (requestModel.includes("Privacy")){
-              alert("Your request needs privacy-preserving analysis. Please click 'PRIVACY-PRESERVING ANALYSIS button!");
-            }
-          }else{alert("You cannot do analysis on the data because your request alidation is failed!")}
-        }).catch((err)=> {alert(err.message);});
-      }
-
-      // analyze data from privacy-preserving data request
-      else if (style.contains('ppLearning')) {
-        const analyzeRequest = selectedRequest.url;
-        const fetchRequest = analyzeRequest.split("#")[0];
-        
-        fetchRequestURL(fetchRequest).then(fetchedRequestListRef=> {
-          // Need to test in the future 
-          const collectionSize = fetchedRequestListRef.getSubject(analyzeRequest).getInteger(schema.collectionSize);
-          const requestModel = fetchedRequestListRef.getSubject(analyzeRequest).getString("http://schema.org/algorithm");
-          if (requestModel.includes("Privacy")){
-            const requestDataItem = fetchedRequestListRef.getSubject(analyzeRequest).getRef(schema.DataFeedItem);
-            const getRequestTriples = fetchedRequestListRef.getTriples();
-            
-            // Find all response to this request with requested data item
-            let participantResponseId = [];
-            for (let i = 0; i < getRequestTriples.length; i++){
-              if (getRequestTriples[i].predicate.id === "http://schema.org/RsvpResponseYes" && getRequestTriples[i].object.id === analyzeRequest){
-                participantResponseId.push(getRequestTriples[i].subject.id);  
-              }
-            }
-  
-            const fetchedDoc = document.getElementById("fetchedDoc");
-            fetchedDoc.setAttribute('style', 'white-space: pre;');
-            let printString = '';
-            let requestDataSum = 0;
-            let requestDataList = [];
-  
-            for (let i = 0; i < participantResponseId.length; i++){
-              // Fetch each response in the request.ttl
-              fetchRequestURL(participantResponseId[i]).then(fetchedparticipantResponse=> {
-                // Find the healthcondition.ttl
-                const requestedDataResult = fetchedparticipantResponse.getSubject(participantResponseId[i]).getInteger(requestDataItem)
-                printString += requestedDataResult + '\r\n'; //fetchedParticipantTriple[j].subject.id
-                requestDataSum += parseInt(requestedDataResult);
-                requestDataList.push(parseInt(requestedDataResult))
-  
-                if (i==participantResponseId.length-1){
-                  fetchedDoc.textContent = printString + '\n Analysis result:' + (requestDataSum/requestDataList.length).toString();
-                }
-              }).catch((err)=> {alert(err.message);});
-            }
-          }
-          else if (requestModel.includes("Regular")){alert("Your request needs regular analysis. Please click 'REGULAR ANALYSIS button!");}
-        }).catch((err)=> {alert(err.message);});
-      }
-      */
-
-    });
-  });
-
-}
-
-function saveRequestForValidation(fetchedRequestListRef, analyzeRequest){
-
-  const subjectTriple = fetchedRequestListRef.getSubject(analyzeRequest);
-  const subject = subjectTriple.asRef(); // `<${}> <${}> <${}>.\n`
-  
-  let requestTripleString = `<${subject}> <${rdf.type}> <${subjectTriple.getRef(rdf.type)}>.\n`;
-  requestTripleString += `<${subject}> <http://schema.org/algorithm> "${subjectTriple.getString("http://schema.org/algorithm")}".\n`;
-  requestTripleString += `<${subject}> <http://schema.org/collectionSize> ${subjectTriple.getInteger(schema.collectionSize)}.\n`;
-  requestTripleString += `<${subject}> <${schema.creator}> <${subjectTriple.getRef(schema.creator)}>.\n`;
-  requestTripleString += `<${subject}> <${schema.dateCreated}> "${subjectTriple.getDateTime(schema.dateCreated).toString().split(" (")[0]}".\n`;
-  requestTripleString += `<${subject}> <${schema.endDate}> "${subjectTriple.getDateTime(schema.endDate).toString().split(" (")[0]}".\n`;
-  requestTripleString += `<${subject}> <http://schema.org/purpose> "${subjectTriple.getString("http://schema.org/purpose")}".\n`;
-  const dataElementList = subjectTriple.getAllRefs(schema.DataFeedItem);
-  if (dataElementList) {
-    for (let i=0; i<dataElementList.length; i++){
-      requestTripleString += `<${subject}> <${schema.DataFeedItem}> <${dataElementList[i]}>.\n`;
-    } 
-  }
-  return requestTripleString
-}
-
-async function validationProcess(fetchedRequestListRef, analyzeRequest, singleRequesterWebID){
-  // const registerFileURL = "https://chang.inrupt.net/registerlist/requestlist.ttl";
-  const fetchRegisterRecord = await fetchDocument(registerFileURL);
-  const signature = fetchRegisterRecord.findSubject(schema.recordedAs, analyzeRequest).getString(schema.validIn);
-  const requesterKeyDoc = await fetchDocument(userRegisterRef);
-  const requesterKeyTriple = requesterKeyDoc.getTriples()
-  for (let i=0;i<requesterKeyTriple.length;i++){
-    if (requesterKeyTriple[i].subject.id.split(".ttl#")[1] == singleRequesterWebID){
-      if (requesterKeyTriple[i].predicate.id == "http://schema.org/hasCredential"){
-        const publicKey = requesterKeyTriple[i].object.value;
-        if (signature){
-          const requestContent = saveRequestForValidation(fetchedRequestListRef, analyzeRequest);
-          const verficiationOutput = sign.detached.verify(decodeUTF8(requestContent), decodeBase64(signature), decodeBase64(publicKey))
-          return verficiationOutput
-        }else{alert("Lack of a valid signature! Execution interrupted!");}
-      }else{alert("This requester does not have a credential. Execution interrupted!")}; 
-    }
-  } 
-}
-
-/****** PAUSE BLOCKCHAIN VALIDATION 
-async function validateRequest(fetchedRequestListRef, analyzeRequest){
-  // const registerFileURL = "https://chang.inrupt.net/registerlist/requestlist.ttl";
-  const fetchRegisterRecord = await fetchDocument(registerFileURL);
-  const contractID = fetchRegisterRecord.findSubject(schema.recordedAs, analyzeRequest).getString(schema.validIn);
-  // console.log(fetchRegisterRecord.findSubject(schema.recordedAs, analyzeRequest).getTriples())
-
-  if (contractID){
-    //send to blockchain to validate the request
-    let formdata = new FormData();
-
-    const requestTripleString = "data:text/plain;base64," + btoa(saveRequestForValidation(fetchedRequestListRef, analyzeRequest));
-    const fileTitle = analyzeRequest.split('#')[1];
-    const token = document.getElementById("input_token").value;
-
-    //Convert dataurl to file object
-    const convertedFile = dataURLtoFile(requestTripleString, fileTitle+'.ttl'); 
-
-    formdata.append("data", convertedFile, fileTitle);
-    const requestOptions = {method: 'POST', body: formdata, redirect: 'follow'};
-
-    const response = await fetch(`https://blockchain7.kmi.open.ac.uk/rdf/merkle/validate/set?token=${token}&contract=${contractID}`, requestOptions)
-    if (response.ok){
-      const result = await response.text();
-      console.log(result);
-      alert("Validation Passed!");
-      return true;
-    }else {alert("HTTP-Error: " + response.status); return false;}
-  }else{alert("Your request is not in the validation blockchain"); return true;}
-}
-*************/
-
-// Namespace Suggestions
-searchIcons.forEach(function(each_search){
-  each_search.addEventListener("click", function(e){
-    e.preventDefault();
-    const styles = e.currentTarget.classList;
-    const tables = document.querySelectorAll(".table");
-
-    if (styles.contains('predicateSuggestion')){
-      var addTripleSearch = document.getElementById("addTriplePredicate").value;
-    }else if (styles.contains('objectSuggestion')){
-      var addTripleSearch = document.getElementById("addTripleObject").value;
-    }
-
-    // GET the URL from the text user put
-    var resultObj = [];
-    if (addTripleSearch){
-      let namespaceList = [schema, foaf, rdf, skos, dc, dct]
-      for (let i=0; i<namespaceList.length; i++){
-        let nameSpace = namespaceList[i];
-        resultObj = searchTermsNamespaces(resultObj, addTripleSearch, nameSpace);
-      }
-    }
-
-    if (resultObj.length==0){
-      resultObj.push({Text:addTripleSearch, FoundURI:"Sorry, we couldn't find matched identifiers(URI)."})
-    }
-
-    tables.forEach(function(table){
-      if (table.classList.contains("searchTable")){
-        printTable(table, resultObj, false);
+        const requestID = selectedRequest.url.split("#")[1];
+        sendTriggerMsg(registerTriggerMessageFolder+requestID+'.ttl', selectedRequest).then(response=>{alert(response)});
       }
     });
-
   });
-});
+}
+// *** Users respond to data request: approve/decline (END) ***//
 
-// Button Choice 
+
+// *** Button rections (START) ***//
 btns.forEach(function(btn) {
   btn.addEventListener("click", function(e){
     e.preventDefault();
@@ -1737,4 +1323,4 @@ btns.forEach(function(btn) {
     }
   });
 });
-
+// *** Button rections (END) ***//

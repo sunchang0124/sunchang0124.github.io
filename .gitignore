@@ -1,0 +1,18 @@
+### System files
+.DS_Store
+
+### Python files
+__pycache__
+*.pyc
+
+### Editor files
+*.swp
+*.sav
+*.csv
+
+### Files produced in use
+solid_login.yaml
+*.log
+
+### Package files/folder
+node_modules/*

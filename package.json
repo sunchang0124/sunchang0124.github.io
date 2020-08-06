@@ -11,27 +11,16 @@
   "dependencies": {
     "@rdfjs/data-model": "^1.1.2",
     "@solid/query-ldflex": "^2.11.2",
-    "@types/dockerode": "^2.5.34",
-    "@types/solid-auth-client": "^2.4.0",
-    "child_process": "^1.0.2",
-    "dockerode": "^3.2.1",
-    "exec-sh": "^0.3.4",
-    "fs": "0.0.1-security",
-    "node-docker-api": "^1.1.22",
-    "promisify-child-process": "^4.1.1",
+    "js-yaml": "^3.14.0",
     "rdf-namespaces": "^1.8.0",
-    "request": "^2.88.2",
-    "semantic-ui": "^2.4.2",
-    "shebang-loader": "0.0.1",
     "solid-auth-client": "^2.4.1",
-    "tar-fs": "^2.1.0",
     "tripledoc": "^4.3.4",
     "tweetnacl": "^1.0.3",
     "tweetnacl-util": "^0.15.1"
   },
   "devDependencies": {
     "@types/request": "^2.48.5",
-    "webpack": "^4.43.0",
+    "webpack": "^4.44.1",
     "webpack-cli": "^3.3.12"
   }
 }
