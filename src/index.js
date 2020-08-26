@@ -5,7 +5,6 @@ import { solid, schema, space, rdf, foaf, acl, skos, dc, dct, vcard} from 'rdf-n
 
 import data from "@solid/query-ldflex";
 import { literal, namedNode } from "@rdfjs/data-model";
-const yaml = require('js-yaml');
 
 import { sign } from "tweetnacl";
 import {decodeUTF8, encodeBase64, decodeBase64} from "tweetnacl-util";
@@ -657,7 +656,7 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
               const AccessControlSuccess = await AccessControlList.save([newRequestAccessControl]);
             }
           }
-          
+          /************ PAUSE ************
           // if it is privacy-preserving analysis
           else if (privacyOption[0]){
             // add participate record to request.ttl
@@ -681,7 +680,7 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
         
             await participateList.save([newParticipateDataElement]);
           }
-
+          ******/
           return true;
 
         }else{alert("Participation end date has to be later than today.")};
@@ -1024,23 +1023,24 @@ function respondToRequest(answer_btns, requestContentList){
   
             getParticipateList(webId).then(fetchedParticipateListRef=> {
               // if the data request is in the regular analysis mode
-              if (requestModel.includes('Regular')){
+              if (requestModel){
                 const aclDocument = webId.split("profile")[0] + "private/healthrecord.ttl.acl"
                 fetchRequestURL(aclDocument).then(AccessControlList => {
-                  addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, AccessControlList, collectionSize, endDate, participate_period, requestModel.includes('Privacy')).then(success=> {
+                  addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, AccessControlList, collectionSize, endDate, participate_period, false).then(success=> { //requestModel.includes('Privacy')
                     if (success){
-                      alert("Your participation is recorded. Access to your 'healthrecord.ttl' is granted to your Pod provider.'");
+                      alert("Your participation is recorded. Access to your 'healthrecord.ttl' is granted for this research request.'");
                     }
                   });
                 }).catch(()=> {alert("If you have given this SOLID App 'Control' Access, please turn on specific sharing for your 'healthrecord.ttl' file .");});
               }
-              // if the data request is in the privacy-preserving mode
+              /*********************** PAUSE ************************
+              // if the data request is in the privacy-preserving mode 
               else if (requestModel.includes('Privacy')){
-                // Query the requested data item
+                // Query the requested data item 
                 fetchRequestURL(fetchParticipateRequestId).then(fetchedParticipateRequest=>{
                   const requestDataItem = fetchedParticipateRequest.getSubject(fetchParticipateRequestId).getRef(schema.DataFeedItem);
                   fetchRequestURL(webId.split('profile')[0]+'private/healthrecord.ttl').then(fetchedParticipantData=> {
-                    // get the latest age data
+                    // get the latest age data 
                     const fetchedParticipantTriple = fetchedParticipantData.getTriples();
         
                     for (let j = 0; j < fetchedParticipantTriple.length; j++){
@@ -1057,6 +1057,7 @@ function respondToRequest(answer_btns, requestContentList){
                   }).catch((err)=> {alert(err.message);});
                 }).catch((err)=> {alert(err.message);});
               } 
+              *********************************************************/
             });
           });
         });

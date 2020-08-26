@@ -281,15 +281,16 @@
             <label>Number of instances (minimal)</label>
             <input type="number" id="input_numInstance" placeholder="Int number">
           </div>
+          
           <div class="field">
             <label>Analysis Model</label>
             <select class="ui dropdown" id="input_model">
-              <option value="1">Regular Calculate Mean</option>
-              <option value="0">Privacy-preserving Calculate Mean</option>
+              <option value="1">Linear Regression</option>
+              <option value="0">Logistic Regression [STILL WIP]</option>
             </select>
           </div>
           
-          <div class="ui tall stacked segment">
+          <!-- <div class="ui tall stacked segment">
             <h4> Regular Analysis</h4>
             Participants will register their participation record in requester POD (request.ttl). 
             Participants will give the requester viewer access to the data item/file. Before the request end date,
@@ -301,7 +302,7 @@
             Participants will only give the requested data item(s) at the moment
             when they click PARTICIPATE button. In this case, participant's SOLID ID or any identifiable information
             will NOT be saved. Therefore, participants cannot modify or delete the data once they give to the request.
-          </div>
+          </div> -->
           <div class="field">
             <!-- <div class="ui checkbox">
               <input type="checkbox" tabindex="0" class="hidden" id="tokenCheck" onclick="displayFunction('showYourToken')">
