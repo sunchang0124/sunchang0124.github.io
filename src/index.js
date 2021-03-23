@@ -851,7 +851,7 @@ async function generateCards(requestContentList, userRole){
         href_dataElement.href = listofElement[itr];
         document.getElementById('contentID'+i.toString()).appendChild(href_dataElement);
       }
-      if (itr==4){
+      if (listofElement.length>5 && itr==4){
         const div_endElement = document.createElement("div");
         div_endElement.textContent = "... ... " + (listofElement.length-5).toString() + " more data elements"; //"period";
         document.getElementById('contentID'+i.toString()).appendChild(div_endElement);
