@@ -24,6 +24,7 @@
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/card.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/modal.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/loader.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/step.css">
 
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/divider.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/dropdown.css">
@@ -219,7 +220,6 @@
   <div class="ui vertical stripe segment">
     <div class="ui container">
       <h3 class="ui header center aligned">All ongoing data requests</h3>
-      
       <div class="ui right aligned container"> 
         <div class="ui action input">
           <input type="url" placeholder="Search request URI or user webID" size="30" id="fetchRequest">
@@ -227,6 +227,31 @@
           <br>
         </div>
       </div>
+
+      <div class="ui center steps">
+        <div class="center step">
+          <i class="id card icon"></i>
+          <div class="content">
+            <div class="title">Viewing</div>
+            <div class="description">View the published data requests from researchers.</div>
+          </div>
+        </div>
+        <div class="step">
+          <i class="calendar alternate icon"></i>
+          <div class="content">
+            <div class="title">Period</div>
+            <div class="description">Enter the specific end date for using your data.</div>
+          </div>
+        </div>
+        <div class="step">
+          <i class="check circle icon"></i>
+          <div class="content">
+            <div class="title">Respond</div>
+            <div class="description">Click decline or approve to the data request.</div>
+          </div>
+        </div>
+      </div>
+
       <h4 class="ui divider"></h4>
     </div>
     <!-- <div class="ui active centered inline loader"></div> -->

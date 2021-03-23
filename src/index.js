@@ -100,7 +100,7 @@ function getIdentityProvider() {
           console.log("Login Inrupt");
         }
         else if (styles.contains('solid')) {
-          resolve("https://solid.community");
+          resolve("https://solidcommunity.net");
           console.log("Login Solid Community");
         }
       });
@@ -313,7 +313,7 @@ async function generatePublicKeyPair(fetchProfile, userName, affiliance) {
   const webIdDoc = await fetchDocument(fetchProfile);
   const profile = webIdDoc.getSubject(fetchProfile);
 
-  /* 1. Check if a Document tracking our notes already exists. */
+  /* 1. Check if a Document tracking our registration already exists. */
   const privateTypeIndexRef = profile.getRef(solid.privateTypeIndex);
   const privateTypeIndex = await fetchDocument(privateTypeIndexRef); 
   const userAuthEntryList = privateTypeIndex.findSubjects(solid.forClass, schema.RegisterAction);//schema.TextDigitalDocument
@@ -497,11 +497,12 @@ function saveRequestLocally(newDataElement, content, fetchProfile, createdDate){
   // requestTripleString += `<${subject}> <${schema.endDate}> ${formatTime(content.period)}.`;//${content.period.toString().split(" (")[0]}
   requestTripleString += `<${subject}> <http://schema.org/purpose> ${content.purpose}.`;
   if (content.data) {
+    const sort_content_data = content.data.sort()
     for (let i=0; i<content.data.length; i++){
-      requestTripleString += `<${subject}> <${schema.DataFeedItem}> <${content.data[i]}>.`;
+      requestTripleString += `<${subject}> <${schema.DataFeedItem}> <${sort_content_data[i]}>.`;
     } 
   }
-  console.log(requestTripleString)
+  // console.log(requestTripleString)
   return requestTripleString
 }
 // *** Save data request locally for signing the request (END) *** //
@@ -759,11 +760,13 @@ function writeAllRequest(profile, requestTriples, fetchRequest){
         requestContent.period = "End date: " + requestTriples[i].object.value;}
       if (requestTriples[i].predicate.id === "http://schema.org/algorithm"){
         requestContent.analysis = "Analysis: " + requestTriples[i].object.value;}
+      if (requestTriples[i].predicate.id === "http://schema.org/collectionSize"){
+        requestContent.numInstance = requestTriples[i].object.value;}
       if (requestTriples[i].predicate.id === "http://schema.org/DataFeedItem"){
         dataElementList.push(requestTriples[i].object.value);
     }
   }
-  requestContent.dataElement = "Requested data: "+ dataElementList;}
+  requestContent.dataElement = "Requested data: "+dataElementList;} // "Requested data: "+ 
   if (Object.keys(requestContent).length < 2){
     requestContent = false;
   }
@@ -822,12 +825,38 @@ async function generateCards(requestContentList, userRole){
     div_description.textContent = requestContentList[i].purpose; //"Purpose";
     document.getElementById('contentID'+i.toString()).appendChild(div_description);
 
+    // Request data elements
+    
     const div_dataElement = document.createElement("div");
     div_dataElement.style = 'word-wrap: break-word';
     div_dataElement.className = "description";
     div_dataElement.id = "dataElementID"+i.toString();
-    div_dataElement.textContent = requestContentList[i].dataElement; //"Purpose";
+    div_dataElement.textContent = "Requested data: " //requestContentList[i].dataElement; //"Data Element";
     document.getElementById('contentID'+i.toString()).appendChild(div_dataElement);
+
+    const listofElement = requestContentList[i].dataElement.split(",");
+    let href_dataElement_0 = document.createElement("a");
+    let linkText = document.createTextNode(listofElement[0].toString().split(": ")[1]);
+    href_dataElement_0.appendChild(linkText);
+    href_dataElement_0.href = listofElement[0].toString().split(": ")[1];
+    document.getElementById('contentID'+i.toString()).appendChild(href_dataElement_0);
+
+    
+    for (let itr=1;itr<5;itr++){
+      if (itr<listofElement.length){
+        document.getElementById('contentID'+i.toString()).appendChild(document.createElement("div"));
+        let href_dataElement = document.createElement("a");
+        let linkText = document.createTextNode(listofElement[itr].toString());
+        href_dataElement.appendChild(linkText);
+        href_dataElement.href = listofElement[itr];
+        document.getElementById('contentID'+i.toString()).appendChild(href_dataElement);
+      }
+      if (itr==4){
+        const div_endElement = document.createElement("div");
+        div_endElement.textContent = "... ... " + (listofElement.length-5).toString() + " more data elements"; //"period";
+        document.getElementById('contentID'+i.toString()).appendChild(div_endElement);
+      }
+    }
 
     const div_period = document.createElement("div");
     div_period.className = "description";
@@ -835,10 +864,16 @@ async function generateCards(requestContentList, userRole){
     div_period.textContent = requestContentList[i].period; //"period";
     document.getElementById('contentID'+i.toString()).appendChild(div_period);
 
+    const div_numInstance = document.createElement("div");
+    div_numInstance.className = "description";
+    div_numInstance.id = "instanceID"+i.toString();
+    div_numInstance.textContent = "Instances: " + requestContentList[i].numInstance; //"numInstance";
+    document.getElementById('contentID'+i.toString()).appendChild(div_numInstance);
+
     const div_analysis = document.createElement("div");
     div_analysis.className = "description";
     div_analysis.id = "analysisID"+i.toString();
-    div_analysis.textContent = requestContentList[i].analysis; //"period";
+    div_analysis.textContent = requestContentList[i].analysis; //"analysis";
     document.getElementById('contentID'+i.toString()).appendChild(div_analysis);
 
     const div_extra = document.createElement("div");
@@ -863,72 +898,84 @@ async function generateCards(requestContentList, userRole){
       document.getElementById('extraID'+i.toString()).appendChild(div_buttons);
 
       const div_redButton = document.createElement("button");
-      div_redButton.className = "ui basic red Decline button answer index_"+i.toString();
+      div_redButton.className = "ui red Decline button answer index_"+i.toString();
       div_redButton.id = "redButtonID"+i.toString();
       div_redButton.textContent = "Decline";
       document.getElementById('buttonsID'+i.toString()).appendChild(div_redButton);
     
       const div_greenButton = document.createElement("button");
-      div_greenButton.className = "ui basic green Approve button answer index_"+i.toString();
+      div_greenButton.className = "ui green Approve button answer index_"+i.toString();
       div_greenButton.id = "greenButtonID"+i.toString();
       div_greenButton.textContent = "Approve";
       document.getElementById('buttonsID'+i.toString()).appendChild(div_greenButton);
     }else{
-      const percent = (Math.floor(Math.random() * 10) * 10).toString()
-      const div_progress = document.createElement("div");
-      div_progress.className = "ui indicating progress";
-      div_progress.dataset.percent = percent;
-      div_progress.id = "progressID"+i.toString();
-      document.getElementById('extraID'+i.toString()).appendChild(div_progress);
+      // console.log(registerParticipationFolder+requestContentList[i].url.split('#')[1]+".ttl")
+      // console.log(requestContentList[i].url)
+      var dataRequested_numInstance = Number(requestContentList[i].numInstance)
+      await getTriplesObjects(registerParticipationFolder+requestContentList[i].url.split('#')[1]+".ttl", null, null, true).then(getTriples => {
 
-      const div_progressBar = document.createElement("div");
-      div_progressBar.className = "bar";
-      div_progressBar.style.width = percent+'%';
-      div_progressBar.style.transitionDuration = '300ms'
-      div_progressBar.id = "progressBarID"+i.toString();
-      document.getElementById('progressID'+i.toString()).appendChild(div_progressBar);
+        const percent_num = (Math.floor(((getTriples.length/6)/dataRequested_numInstance) * 100)) // Hard code here! 
+        let percent = 0
+        if (percent_num <= 100){
+          percent = percent_num
+        }else{
+          percent = 100
+        }
 
-      const div_progressLabel = document.createElement("div");
-      div_progressLabel.className = "label";
-      div_progressLabel.id = "progressLabelID"+i.toString();
-      div_progressLabel.textContent = "Data collection progress - " + percent+"%";
-      document.getElementById('progressID'+i.toString()).appendChild(div_progressLabel);
+        // const percent = (Math.floor(Math.random() * 10) * 10).toString()
+        const div_progress = document.createElement("div");
+        div_progress.className = "ui indicating progress";
+        div_progress.dataset.percent = percent;
+        div_progress.id = "progressID"+i.toString();
+        document.getElementById('extraID'+i.toString()).appendChild(div_progress);
 
-      const div_buttons = document.createElement("div");
-      div_buttons.className = "ui two buttons";
-      div_buttons.id = "buttonsID"+i.toString();
-      document.getElementById('extraID'+i.toString()).appendChild(div_buttons);
+        const div_progressBar = document.createElement("div");
+        div_progressBar.className = "bar";
+        div_progressBar.style.width = percent+'%';
+        div_progressBar.style.transitionDuration = '300ms'
+        div_progressBar.id = "progressBarID"+i.toString();
+        document.getElementById('progressID'+i.toString()).appendChild(div_progressBar);
 
-      if (userRole === "requester"){
+        const div_progressLabel = document.createElement("div");
+        div_progressLabel.className = "label";
+        div_progressLabel.id = "progressLabelID"+i.toString();
+        div_progressLabel.textContent = "Data collection progress - " + percent+"%";
+        document.getElementById('progressID'+i.toString()).appendChild(div_progressLabel);
 
-        const div_regularButton = document.createElement("button");
-        div_regularButton.className = "ui grey stopCollection button answer index_"+i.toString(); //rglLearning
-        div_regularButton.id = "stopCollectionButtonID"+i.toString(); //regularButtonID
-        div_regularButton.textContent = "Stop collection"//"Regular analysis";
-        document.getElementById('buttonsID'+i.toString()).appendChild(div_regularButton);
-      
-        const div_privacyButton = document.createElement("button");
-        div_privacyButton.className = "ui blue triggerAnalysis button answer index_"+i.toString(); //ppLearning
-        div_privacyButton.id = "triggerAnalysisButtonID"+i.toString(); //privacyButtonID
-        div_privacyButton.textContent = "Trigger analysis" //"Secure analysis";
-        document.getElementById('buttonsID'+i.toString()).appendChild(div_privacyButton);
+        const div_buttons = document.createElement("div");
+        div_buttons.className = "ui two buttons";
+        div_buttons.id = "buttonsID"+i.toString();
+        document.getElementById('extraID'+i.toString()).appendChild(div_buttons);
 
-      }else if (userRole === "podProvider"){
-        const div_privacyButton = document.createElement("button");
-        div_privacyButton.className = "ui grey ppLearning button answer index_"+i.toString(); //ppLearning
-        div_privacyButton.id = "privacyButtonID"+i.toString(); 
-        div_privacyButton.textContent = "Abortion";
-        document.getElementById('buttonsID'+i.toString()).appendChild(div_privacyButton);
+        if (userRole === "requester"){
 
-        const div_regularButton = document.createElement("button");
-        div_regularButton.className = "ui blue proceed button answer index_"+i.toString(); //rglLearning
-        div_regularButton.id = "regularButtonID"+i.toString();
-        div_regularButton.textContent = "Proceed"; //Regular analysis
-        document.getElementById('buttonsID'+i.toString()).appendChild(div_regularButton);
+          const div_regularButton = document.createElement("button");
+          div_regularButton.className = "ui grey stopCollection button answer index_"+i.toString(); //rglLearning
+          div_regularButton.id = "stopCollectionButtonID"+i.toString(); //regularButtonID
+          div_regularButton.textContent = "Stop collection"//"Regular analysis";
+          document.getElementById('buttonsID'+i.toString()).appendChild(div_regularButton);
+        
+          const div_privacyButton = document.createElement("button");
+          div_privacyButton.className = "ui blue triggerAnalysis button answer index_"+i.toString(); //ppLearning
+          div_privacyButton.id = "triggerAnalysisButtonID"+i.toString(); //privacyButtonID
+          div_privacyButton.textContent = "Trigger analysis" //"Secure analysis";
+          document.getElementById('buttonsID'+i.toString()).appendChild(div_privacyButton);
 
-      }
+        }else if (userRole === "podProvider"){
+          const div_privacyButton = document.createElement("button");
+          div_privacyButton.className = "ui grey ppLearning button answer index_"+i.toString(); //ppLearning
+          div_privacyButton.id = "privacyButtonID"+i.toString(); 
+          div_privacyButton.textContent = "Abortion";
+          document.getElementById('buttonsID'+i.toString()).appendChild(div_privacyButton);
+
+          const div_regularButton = document.createElement("button");
+          div_regularButton.className = "ui blue proceed button answer index_"+i.toString(); //rglLearning
+          div_regularButton.id = "regularButtonID"+i.toString();
+          div_regularButton.textContent = "Proceed"; //Regular analysis
+          document.getElementById('buttonsID'+i.toString()).appendChild(div_regularButton);
+        }
+      })//.catch((err)=> {alert(err.message);});
     }
-    
   };
   return requestContentList;
 };
@@ -1031,7 +1078,7 @@ function respondToRequest(answer_btns, requestContentList){
                       alert("Your participation is recorded. Access to your 'healthrecord.ttl' is granted for this research request.'");
                     }
                   });
-                }).catch(()=> {alert("If you have given this SOLID App 'Control' Access, please turn on specific sharing for your 'healthrecord.ttl' file .");});
+                }).catch(()=> {alert("If you have not given this SOLID App 'Control' Access, please turn on specific sharing for your 'healthrecord.ttl' file .");});
               }
               /*********************** PAUSE ************************
               // if the data request is in the privacy-preserving mode 
