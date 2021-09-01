@@ -33,7 +33,6 @@
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/transition.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/popup.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/search.css">
-  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/dimmer.css">
       
   <style type="text/css">
     .hidden.menu {
@@ -136,7 +135,6 @@
   <script src="../semantic/dist/components/popup.js"></script>
   <script src="../semantic/dist/components/search.js"></script>
   <script src="../semantic/dist/semantic.js"></script>
-  <script src="../semantic/dist/components/dimmer.js"></script>
 
   <script>
   
@@ -167,9 +165,7 @@
       $('.icon')
         .popup({on:'click'})
       ;
-      $('.ui.dimmable')
-        .dimmer('show')
-      ;
+
       $('.ui.search')
         .search({
           type          : 'category',
@@ -200,16 +196,15 @@
                 }
                 // add result to category
                 response.results[ontology].results.push({
-                  title       : item['@id'],
+                  title       : item.prefLabel,
                   description : item['definition'],
-                  // url         : item['@id'],
-                  price         : item.prefLabel
+                  url         : item['@id'],
+                  price         : item['@id']
                 });
               });
               return response;
             },
             // url: '//api.github.com/search/repositories?q={query}'
-            
             url: "//data.bioontology.org/search?q={query}&roots_only=true&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388"
           }
         })
@@ -393,17 +388,17 @@
               <i class="dropdown icon"></i>
               <div class="default text">Select the categores of personal data you are requesting</div>
               <div class="menu">
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Internal"> Internal</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Authenticating" id="http://www.w3.org/ns/dpv#Authenticating">Authenticating (Secret Text, PIN Code,Password) </div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#SecretText"><i class="angle right icon"></i><i class="angle right icon"></i>Secret Text</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Internal"> Internal</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Authenticating"><i class="angle right icon"></i>Authenticating</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#SecretText"><i class="angle right icon"></i><i class="angle right icon"></i>Secret Text</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#PINCode"><i class="angle right icon"></i><i class="angle right icon"></i>PIN Code</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Password"><i class="angle right icon"></i><i class="angle right icon"></i>Password</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#KnowledgeBelief" id="http://www.w3.org/ns/dpv#KnowledgeBelief">Knowledge and Beliefs (Thought, Religious Belief (special), Philosophical Belief (special))</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Thought"><i class="angle right icon"></i><i class="angle right icon"></i>Thought</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Password"><i class="angle right icon"></i><i class="angle right icon"></i>Password</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#KnowledgeBelief"><i class="angle right icon"></i>Knowledge and Beliefs</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Thought"><i class="angle right icon"></i><i class="angle right icon"></i>Thought</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#ReligiousBelief"><i class="angle right icon"></i><i class="angle right icon"></i>Religious Belief [Special Category Personal Data] </div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#PhilosophicalBelief"><i class="angle right icon"></i><i class="angle right icon"></i>Philosophical Belief [Special Category Personal Data] </div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Preference" id="http://www.w3.org/ns/dpv#Preference">Preference (Opinion, Interest, Favorite, Intention)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Opinion"><i class="angle right icon"></i><i class="angle right icon"></i>Opinion</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#PhilosophicalBelief"><i class="angle right icon"></i><i class="angle right icon"></i>Philosophical Belief [Special Category Personal Data] </div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Preference"><i class="angle right icon"></i>Preference</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Opinion"><i class="angle right icon"></i><i class="angle right icon"></i>Opinion</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Interest"><i class="angle right icon"></i><i class="angle right icon"></i>Interest</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Dislike"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Dislike</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Like"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Like</div>
@@ -412,24 +407,24 @@
                 <div class="item" data-value="http://www.w3.org/ns/dpv#FavoriteColor"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Favorite Color</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#FavoriteFood"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Favorite Food</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#FavoriteMusic"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Favorite Music</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Intention"><i class="angle right icon"></i><i class="angle right icon"></i> Intention</div> -->
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Intention"><i class="angle right icon"></i><i class="angle right icon"></i> Intention</div>
 
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#External"> External</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Demographic" id="http://www.w3.org/ns/dpv#Demographic">Demographic (Physical Trait, Income Bracket, Geographic)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#PhysicalTrait"><i class="angle right icon"></i><i class="angle right icon"></i>Physical Trait</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#External"> External</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Demographic"><i class="angle right icon"></i>Demographic</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#PhysicalTrait"><i class="angle right icon"></i><i class="angle right icon"></i>Physical Trait</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#IncomeBracket"><i class="angle right icon"></i><i class="angle right icon"></i>Income Bracket</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Geographic"><i class="angle right icon"></i><i class="angle right icon"></i>Geographic</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#PhysicalCharacteristic" id="http://www.w3.org/ns/dpv#PhysicalCharacteristic">Physical Characteristic (Gender, Age, Weight, Hair Color)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Tattoo"><i class="angle right icon"></i><i class="angle right icon"></i>Tattoo</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Geographic"><i class="angle right icon"></i><i class="angle right icon"></i>Geographic</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#PhysicalCharacteristic"><i class="angle right icon"></i>PhysicalCharacteristic</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Tattoo"><i class="angle right icon"></i><i class="angle right icon"></i>Tattoo</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Gender"><i class="angle right icon"></i><i class="angle right icon"></i>Gender</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#SkinTone"><i class="angle right icon"></i><i class="angle right icon"></i>Skin Tone</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Age"><i class="angle right icon"></i><i class="angle right icon"></i>Age</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Weight"><i class="angle right icon"></i><i class="angle right icon"></i>Weight</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Piercing"><i class="angle right icon"></i><i class="angle right icon"></i>Piercing</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#HairColor"><i class="angle right icon"></i><i class="angle right icon"></i>Hair Color</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Height"><i class="angle right icon"></i><i class="angle right icon"></i>Height</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Behavioral" id="http://www.w3.org/ns/dpv#Behavioral">Behavioral (Attitude, Demeanor, Personality, Service Consumption Behavior)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#BrowsingBehavior"><i class="angle right icon"></i><i class="angle right icon"></i>Browsing Behavior</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Height"><i class="angle right icon"></i><i class="angle right icon"></i>Height</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Behavioral"><i class="angle right icon"></i>Behavioral</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#BrowsingBehavior"><i class="angle right icon"></i><i class="angle right icon"></i>Browsing Behavior</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#BrowsingReferral"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Browsing Referral</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Attitude"><i class="angle right icon"></i><i class="angle right icon"></i>Attitude</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#CallLog"><i class="angle right icon"></i><i class="angle right icon"></i>Call Log</div>
@@ -438,18 +433,18 @@
                 <div class="item" data-value="http://www.w3.org/ns/dpv#AuthenticationHistory"><i class="angle right icon"></i><i class="angle right icon"></i>Authentication History</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#LinkClicked"><i class="angle right icon"></i><i class="angle right icon"></i>LinkClicked</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#ServiceConsumptionBehavior"><i class="angle right icon"></i><i class="angle right icon"></i>Service Consumption Behavior</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#TVViewingBehavior"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>TV Viewing Behavior</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Identifying" id="http://www.w3.org/ns/dpv#Identifying">Identifying (Biometric(special), Fingerprint(special), Retina(special), UID, Name, Picture)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Biometric"><i class="angle right icon"></i><i class="angle right icon"></i>Biometric [Special Category Personal Data]</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#TVViewingBehavior"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>TV Viewing Behavior</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Identifying"><i class="angle right icon"></i>Identifying</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Biometric"><i class="angle right icon"></i><i class="angle right icon"></i>Biometric [Special Category Personal Data]</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Fingerprint"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Fingerprint [Special Category Personal Data]</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Retina"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Retina [Special Category Personal Data]</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Username"><i class="angle right icon"></i><i class="angle right icon"></i> Username</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#UID"><i class="angle right icon"></i><i class="angle right icon"></i>UID</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Name"><i class="angle right icon"></i><i class="angle right icon"></i>Name</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#OfficialID"><i class="angle right icon"></i><i class="angle right icon"></i>Official ID</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Picture"><i class="angle right icon"></i><i class="angle right icon"></i>Picture</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#MedicalHealth" id="http://www.w3.org/ns/dpv#MedicalHealth">Medical Health [Special] (Physical Health, Mental Health, DNA Code, Disability, Health History) </div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#PhysicalHealth"><i class="angle right icon"></i><i class="angle right icon"></i> Physical Health [Special Category Personal Data]</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Picture"><i class="angle right icon"></i><i class="angle right icon"></i>Picture</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#MedicalHealth"><i class="angle right icon"></i> Medical Health [Special Category Personal Data]</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#PhysicalHealth"><i class="angle right icon"></i><i class="angle right icon"></i> Physical Health [Special Category Personal Data]</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#MentalHealth"><i class="angle right icon"></i><i class="angle right icon"></i> Mental Health [Special Category Personal Data]</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#DNACode"><i class="angle right icon"></i><i class="angle right icon"></i> DNA Code [Special Category Personal Data]</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Disability"><i class="angle right icon"></i><i class="angle right icon"></i>Disability [Special Category Personal Data]</div>
@@ -460,45 +455,45 @@
                 <div class="item" data-value="http://www.w3.org/ns/dpv#IndividualHealthHistory"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Individual Health History [Special Category Personal Data]</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Prescription"><i class="angle right icon"></i><i class="angle right icon"></i> Prescription [Special Category Personal Data]</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#HealthRecord"><i class="angle right icon"></i><i class="angle right icon"></i> Health Record [Special Category Personal Data]</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#DrugTestResult"><i class="angle right icon"></i><i class="angle right icon"></i> Drug Test Result [Special Category Personal Data]</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Sexual" id="http://www.w3.org/ns/dpv#Sexual">Sexual [Special] (Proclivitie, Sexual Preference, Sexual History, Fetish)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Proclivitie"><i class="angle right icon"></i><i class="angle right icon"></i> Proclivitie [Special Category Personal Data]</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#DrugTestResult"><i class="angle right icon"></i><i class="angle right icon"></i> Drug Test Result [Special Category Personal Data]</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Sexual"><i class="angle right icon"></i>Sexual [Special Category Personal Data]</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Proclivitie"><i class="angle right icon"></i><i class="angle right icon"></i> Proclivitie [Special Category Personal Data]</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#SexualPreference"><i class="angle right icon"></i><i class="angle right icon"></i> Sexual Preference [Special Category Personal Data]</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#SexualHistory"><i class="angle right icon"></i><i class="angle right icon"></i> Sexual History [Special Category Personal Data]</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Fetish"><i class="angle right icon"></i><i class="angle right icon"></i> Fetish [Special Category Personal Data]</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Ethnicity" id="http://www.w3.org/ns/dpv#Ethnicity">Ethnicity [Special] (Race, Ethnic Origin)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Race"><i class="angle right icon"></i><i class="angle right icon"></i> Race [Special Category Personal Data]</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#EthnicOrigin"><i class="angle right icon"></i><i class="angle right icon"></i> Ethnic Origin [Special Category Personal Data]</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Language" id="http://www.w3.org/ns/dpv#Language">Language (Accent, Dialect)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Accent"><i class="angle right icon"></i><i class="angle right icon"></i> Accent</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Dialect"><i class="angle right icon"></i><i class="angle right icon"></i> Dialect</div> -->
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Fetish"><i class="angle right icon"></i><i class="angle right icon"></i> Fetish [Special Category Personal Data]</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Ethnicity"><i class="angle right icon"></i> Ethnicity</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Race"><i class="angle right icon"></i><i class="angle right icon"></i> Race [Special Category Personal Data]</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#EthnicOrigin"><i class="angle right icon"></i><i class="angle right icon"></i> Ethnic Origin [Special Category Personal Data]</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Language"><i class="angle right icon"></i> Language</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Accent"><i class="angle right icon"></i><i class="angle right icon"></i> Accent</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Dialect"><i class="angle right icon"></i><i class="angle right icon"></i> Dialect</div>
 
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Social"> Social </div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#SocialNetwork" id="http://www.w3.org/ns/dpv#SocialNetwork">Social Network (Friend, Association, Group Membership, Acquantaince, Connection)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Friend"><i class="angle right icon"></i><i class="angle right icon"></i> Friend</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Social"> Social </div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#SocialNetwork"><i class="angle right icon"></i>Social Network</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Friend"><i class="angle right icon"></i><i class="angle right icon"></i> Friend</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Association"><i class="angle right icon"></i><i class="angle right icon"></i> Association</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#GroupMembership"><i class="angle right icon"></i><i class="angle right icon"></i> Group Membership</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Acquantaince"><i class="angle right icon"></i><i class="angle right icon"></i>Acquantaince</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Connection"><i class="angle right icon"></i><i class="angle right icon"></i> Connection</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#PublicLife" id="http://www.w3.org/ns/dpv#PublicLife">Public Life (Political Affiliation (Special), Character, Religion(Special), Marital Status, Social Status)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#PoliticalAffiliation"><i class="angle right icon"></i><i class="angle right icon"></i>Political Affiliation [Special Category Personal Data]</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Connection"><i class="angle right icon"></i><i class="angle right icon"></i> Connection</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#PublicLife"><i class="angle right icon"></i> Public Life</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#PoliticalAffiliation"><i class="angle right icon"></i><i class="angle right icon"></i>Political Affiliation [Special Category Personal Data]</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Character"><i class="angle right icon"></i><i class="angle right icon"></i>Character</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Religion"><i class="angle right icon"></i><i class="angle right icon"></i>Religion [Special Category Personal Data] </div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#MaritalStatus"><i class="angle right icon"></i><i class="angle right icon"></i>Marital Status</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#GeneralReputation"><i class="angle right icon"></i><i class="angle right icon"></i>General Reputation</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#SocialStatus"><i class="angle right icon"></i><i class="angle right icon"></i> Social Status</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Interaction"><i class="angle right icon"></i><i class="angle right icon"></i> Interaction</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#CommunicationsMetadata"><i class="angle right icon"></i><i class="angle right icon"></i>Communications Metadata</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Family" id="http://www.w3.org/ns/dpv#Family">Family (Family Structure, Divorce, Marriage, Parent, Sibling, Relationship)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#FamilyStructure"><i class="angle right icon"></i><i class="angle right icon"></i>Family Structure</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#CommunicationsMetadata"><i class="angle right icon"></i><i class="angle right icon"></i>Communications Metadata</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Family"><i class="angle right icon"></i> Family</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#FamilyStructure"><i class="angle right icon"></i><i class="angle right icon"></i>Family Structure</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Divorce"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i> Divorce</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Marriage"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Marriage</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Offspring"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Offspring</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Parent"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Parent</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Sibling"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Sibling</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Relationship"><i class="angle right icon"></i><i class="angle right icon"></i>Relationship</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Professional" id="http://www.w3.org/ns/dpv#Professional">Professional (Salary, Employment History, Work History, School, Professional Certification, Job)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Salary"><i class="angle right icon"></i><i class="angle right icon"></i>Salary</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Relationship"><i class="angle right icon"></i><i class="angle right icon"></i>Relationship</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Professional"><i class="angle right icon"></i>Professional</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Salary"><i class="angle right icon"></i><i class="angle right icon"></i>Salary</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#EmploymentHistory"><i class="angle right icon"></i><i class="angle right icon"></i> Employment History</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#ProfessionalInterview"><i class="angle right icon"></i><i class="angle right icon"></i> Professional Interview</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#WorkHistory"><i class="angle right icon"></i><i class="angle right icon"></i> Work History</div>
@@ -507,28 +502,28 @@
                 <div class="item" data-value="http://www.w3.org/ns/dpv#ProfessionalCertification"><i class="angle right icon"></i><i class="angle right icon"></i>Professional Certification</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#ProfessionalEvaluation"><i class="angle right icon"></i><i class="angle right icon"></i> Professional Evaluation</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Job"><i class="angle right icon"></i><i class="angle right icon"></i>Job</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#DisciplinaryAction"><i class="angle right icon"></i><i class="angle right icon"></i> Disciplinary Action</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Communication" id="http://www.w3.org/ns/dpv#Communication">Communication (Email Content, Social Media Communication, Voice Mail)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#EmailContent"><i class="angle right icon"></i><i class="angle right icon"></i>Email Content</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#DisciplinaryAction"><i class="angle right icon"></i><i class="angle right icon"></i> Disciplinary Action</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Communication"><i class="angle right icon"></i>Communication</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#EmailContent"><i class="angle right icon"></i><i class="angle right icon"></i>Email Content</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#SocialMediaCommunication"><i class="angle right icon"></i><i class="angle right icon"></i> Social Media Communication</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#VoiceMail"><i class="angle right icon"></i><i class="angle right icon"></i>Voice Mail</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#VoiceCommunicationRecording"><i class="angle right icon"></i><i class="angle right icon"></i>Voice Communication Recording</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Criminal" id="http://www.w3.org/ns/dpv#Criminal">Criminal (Criminal Charge, Criminal Conviction, Criminal Pardon)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#CriminalCharge"><i class="angle right icon"></i><i class="angle right icon"></i> Criminal Charge</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#VoiceCommunicationRecording"><i class="angle right icon"></i><i class="angle right icon"></i>Voice Communication Recording</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Criminal"><i class="angle right icon"></i> Criminal</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#CriminalCharge"><i class="angle right icon"></i><i class="angle right icon"></i> Criminal Charge</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#CriminalConviction"><i class="angle right icon"></i><i class="angle right icon"></i> Criminal Conviction</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#CriminalPardon"><i class="angle right icon"></i><i class="angle right icon"></i>Criminal Pardon</div> -->
+                <div class="item" data-value="http://www.w3.org/ns/dpv#CriminalPardon"><i class="angle right icon"></i><i class="angle right icon"></i>Criminal Pardon</div>
 
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Financial" > Financial </div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#FinancialAccount" id="http://www.w3.org/ns/dpv#FinancialAccount">Financial Account (Financial Account, Payment Card, Account Identifier, Bank Account)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#PaymentCard"><i class="angle right icon"></i><i class="angle right icon"></i> Payment Card</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Financial"> Financial</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#FinancialAccount"><i class="angle right icon"></i> Financial Account</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#PaymentCard"><i class="angle right icon"></i><i class="angle right icon"></i> Payment Card</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#PaymentCardExpiry"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Payment Card Expiry</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#PaymentCardNumber"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Payment Card Number</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#CreditCardNumber"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i> Credit Card Number</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#AccountIdentifier"><i class="angle right icon"></i><i class="angle right icon"></i> Account Identifier</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#FinancialAccountNumber"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i> Financial Account Number</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#BankAccount"><i class="angle right icon"></i><i class="angle right icon"></i> Bank Account</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Transactional" id="http://www.w3.org/ns/dpv#Transactional"> Transactional (Credit, Purchases and Spending Habit, Sale, Tax, Income)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Credit"><i class="angle right icon"></i><i class="angle right icon"></i> Credit</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#BankAccount"><i class="angle right icon"></i><i class="angle right icon"></i> Bank Account</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Transactional"><i class="angle right icon"></i> Transactional</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Credit"><i class="angle right icon"></i><i class="angle right icon"></i> Credit</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#CreditCapacity"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i> Credit Capacity</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#CreditStanding"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i> Credit Standing</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#CreditRecord"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Credit Record</div>
@@ -540,35 +535,35 @@
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Tax"><i class="angle right icon"></i><i class="angle right icon"></i> Tax</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Purchase"><i class="angle right icon"></i><i class="angle right icon"></i> Purchase</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Transaction"><i class="angle right icon"></i><i class="angle right icon"></i> Transaction</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Income"><i class="angle right icon"></i><i class="angle right icon"></i> Income</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Ownership" id="http://www.w3.org/ns/dpv#Ownership">Ownership (Car Owned, House Owned, Personal Possession)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#CarOwned"><i class="angle right icon"></i><i class="angle right icon"></i> Car Owned</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Income"><i class="angle right icon"></i><i class="angle right icon"></i> Income</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Ownership"><i class="angle right icon"></i> Ownership</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#CarOwned"><i class="angle right icon"></i><i class="angle right icon"></i> Car Owned</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#HouseOwned"><i class="angle right icon"></i><i class="angle right icon"></i> House Owned</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#ApartmentOwned"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i> Apartment Owned</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#PersonalPossession"><i class="angle right icon"></i><i class="angle right icon"></i> Personal Possession</div> -->
+                <div class="item" data-value="http://www.w3.org/ns/dpv#PersonalPossession"><i class="angle right icon"></i><i class="angle right icon"></i> Personal Possession</div>
 
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Tracking"> Tracking </div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Contact" id="http://www.w3.org/ns/dpv#Contact">Contact (Physical Address, Telephone Number, Email Address)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#PhysicalAddress"><i class="angle right icon"></i><i class="angle right icon"></i> Physical Address</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Tracking"> Tracking </div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Contact"><i class="angle right icon"></i>Contact</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#PhysicalAddress"><i class="angle right icon"></i><i class="angle right icon"></i> Physical Address</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#TelephoneNumber"><i class="angle right icon"></i><i class="angle right icon"></i>Telephone Number</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#EmailAddress"><i class="angle right icon"></i><i class="angle right icon"></i>Email Address</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#Location" id="http://www.w3.org/ns/dpv#Location">Location (GPS Coordinate, Country, </div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#GPSCoordinate"><i class="angle right icon"></i><i class="angle right icon"></i>GPS Coordinate</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#EmailAddress"><i class="angle right icon"></i><i class="angle right icon"></i>Email Address</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Location"><i class="angle right icon"></i> Location</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#GPSCoordinate"><i class="angle right icon"></i><i class="angle right icon"></i>GPS Coordinate</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#Country"><i class="angle right icon"></i><i class="angle right icon"></i> Country</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#RoomNumber"><i class="angle right icon"></i><i class="angle right icon"></i> Room Number</div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#DeviceBased" id="http://www.w3.org/ns/dpv#DeviceBased">Device Based (IP Address, Device Software, Browser Fingerprint, MAC Address)</div>
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#IPAddress"><i class="angle right icon"></i><i class="angle right icon"></i> IP Address</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#RoomNumber"><i class="angle right icon"></i><i class="angle right icon"></i> Room Number</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#DeviceBased"><i class="angle right icon"></i> Device Based</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#IPAddress"><i class="angle right icon"></i><i class="angle right icon"></i> IP Address</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#DeviceSoftware"><i class="angle right icon"></i><i class="angle right icon"></i> Device Software</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#DeviceApplications"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i>Device Applications</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#DeviceOperatingSystem"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i> Device Operating System</div>
                 <div class="item" data-value="http://www.w3.org/ns/dpv#BrowserFingerprint"><i class="angle right icon"></i><i class="angle right icon"></i> Browser Fingerprint</div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#MACAddress"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i> MAC Address</div> -->
+                <div class="item" data-value="http://www.w3.org/ns/dpv#MACAddress"><i class="angle right icon"></i><i class="angle right icon"></i><i class="angle right icon"></i> MAC Address</div>
 
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#Historical"> Historical </div> -->
-                <div class="item" data-value="http://www.w3.org/ns/dpv#LifeHistory" id="http://www.w3.org/ns/dpv#LifeHistory">Life History</div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#Historical"> Historical </div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#LifeHistory"><i class="angle right icon"></i> Life History</div>
 
-                <!-- <div class="item" data-value="http://www.w3.org/ns/dpv#DerivedPersonalData"> Derived Personal Data </div>
-                <div class="item" data-value="http://www.w3.org/ns/dpv#SpecialCategoryPersonalData"> Special Category Personal Data</div> -->
+                <div class="item" data-value="http://www.w3.org/ns/dpv#DerivedPersonalData"> Derived Personal Data </div>
+                <div class="item" data-value="http://www.w3.org/ns/dpv#SpecialCategoryPersonalData"> Special Category Personal Data</div>
               </div>
             </div>
           </div>
@@ -600,7 +595,7 @@
 
           </div>
 
-          <div class="required field" id="input_addedField">
+          <div class="required field">
             <h4 id="input_addRequestedDataMessage"></h4>
           </div>
 

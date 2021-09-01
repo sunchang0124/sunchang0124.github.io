@@ -9,13 +9,47 @@ import { literal, namedNode } from "@rdfjs/data-model";
 import { sign } from "tweetnacl";
 import {decodeUTF8, encodeBase64, decodeBase64} from "tweetnacl-util";
 
+import fetch from "node-fetch";
+
 // Global variables
 var registerFileURL = "https://chang.inrupt.net/registerlist/requestlist.ttl";
-var registerParticipationFolder = "https://chang.inrupt.net/registerlist/participationlist/";
+var registerParticipationFolder = "https://chang.inrupt.net/registerlist/participationlistv2/";
 var registerTriggerMessageFolder = "https://chang.inrupt.net/inbox/triggermessage/";
 var podServerURL = "https://chang.inrupt.net/profile/card#me";
 var registerIndexRef = "https://chang.inrupt.net/settings/registerIndex.ttl";
-var userRegisterRef = "https://chang.inrupt.net/registerlist/userregister.ttl"
+var userRegisterRef = "https://chang.inrupt.net/registerlist/userregister.ttl";
+var dataFileName = "healthrecord.ttl";
+
+// Global terminology
+var requestPurposeClassGlobal = "http://www.w3.org/ns/dpv#hasPurpose";
+var requestPurposeLabelGlobal = "http://www.w3.org/2000/01/rdf-schema#label";
+var requestDataCategoryGlobal = "http://www.w3.org/ns/dpv#hasPersonalDataCategory";
+// var requestOntologyGlobal = "http://www.w3.org/ns/dpv#hasContext";
+var requestDataElementGlobal = "http://schema.org/DataFeedItem";
+var requestExpiryGlobal = "http://www.w3.org/ns/dpv#hasExpiryTime";
+var requestCollectionSizeGlobal = "http://schema.org/collectionSize";
+var requestDataProcessGlobal = "http://www.w3.org/ns/dpv#hasProcessing";
+var requestAnalysisLogicGlobal = "http://www.w3.org/ns/dpv#hasAlgorithmicLogic";
+var requestConsequenceGlobal = "http://www.w3.org/ns/dpv#hasConsequences";
+// var requestRecipientGlobal = "http://www.w3.org/ns/dpv#hasRecipient";
+var requestDataControllerGlobal = "http://www.w3.org/ns/dpv#hasDataController";
+var requestPersonalDataHandlingGlobal = "http://www.w3.org/ns/dpv#PersonalDataHandling"
+
+var joinActionGlobal = "http://schema.org/JoinAction";
+var joinConsentGlobal = "http://www.w3.org/ns/dpv#Consent";
+var joinConsentNoticeGlobal = "http://www.w3.org/ns/dpv#hasConsentNotice";
+var joinDataSubjectGlobal = "http://www.w3.org/ns/dpv#DataSubject";
+var joinDataCreatedGlobal = "http://schema.org/dateCreated";
+var joinhasProvisionTimeGlobal = "http://www.w3.org/ns/dpv#hasProvisionTime";
+var joinhasProvisionMethodGlobal = "http://www.w3.org/ns/dpv#hasProvisionMethod";
+var joinhasWithdrawalTimeGlobal = "http://www.w3.org/ns/dpv#hasWithdrawalTime";
+var joinhasWithdrawalMethodGlobal= "http://www.w3.org/ns/dpv#hasWithdrawalMethod";
+var joinDataRecipientGlobal = "http://www.w3.org/ns/dpv#hasRecipient";
+var joinhasExpiryGlobal= "http://www.w3.org/ns/dpv#hasExpiry";
+var joinhasExpiryTimeGlobal= "http://www.w3.org/ns/dpv#hasExpiryTime";
+
+
+
 
 // query all button values
 const btns = document.querySelectorAll(".listen.button");
@@ -25,22 +59,37 @@ const searchIcons= document.querySelectorAll(".link");
 /* Auto-run based on different page (START) */
 var page = window.location.pathname.split("/").pop();
 if (page === "participate.html"){
+
   fetchRequestURL(registerFileURL).then(fetchRegisterRecord => {
     fetchRegisterList(fetchRegisterRecord).then(fetchedRequestAndWebId =>{
-
       const requestURIList = fetchedRequestAndWebId[0]
       const requestWebIdDocList = fetchedRequestAndWebId[1]
       const requestProfileIdList = fetchedRequestAndWebId[2]
 
-      plotCardsOnPage(requestWebIdDocList, requestProfileIdList, requestURIList, "fromPageEntrance", "participant").then(outcome => {
-        respondToRequest(outcome[0], outcome[1]);
+      auth.currentSession().then(session=>{
+        const participant_webID = session.webId;
+        const participant_dataFile = participant_webID.split("profile/card#")[0]+"private/"+dataFileName;
+        const participant_basket = []
+
+        fetchRequestURL(participant_dataFile).then(fetchedParticipantDataFileRef=> {
+          const participant_triple = fetchedParticipantDataFileRef.getTriples()
+          participant_triple.forEach(eachDataItem=>{
+            participant_basket.push(eachDataItem.predicate.id);
+          });
+          plotCardsOnPage(requestWebIdDocList, requestProfileIdList, requestURIList, "fromPageEntrance", "participant", session, participant_basket).then(outcome => {
+            respondToRequest(outcome[0], outcome[1]);
+
+          });
+        });
+        
       });
-    });
+    }).catch(error =>console.log(error));;
   });
 }else if (page === "yourRequest.html"){
   getWebId().then(profileWebID => {
     getRequestList(profileWebID).then(fetchedRequestListRef => {
-      const findAllSubjects = fetchedRequestListRef.findSubjects(rdf.type, "http://schema.org/AskAction");
+      // const findAllSubjects = fetchedRequestListRef.findSubjects(rdf.type, "http://schema.org/AskAction");
+      const findAllSubjects = fetchedRequestListRef.findSubjects(rdf.type, requestPersonalDataHandlingGlobal);
 
       fetchRequestURL(profileWebID).then(webIdDoc => {
         plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, "fromWebID", "requester").then(outcome => {
@@ -62,6 +111,7 @@ async function sendTriggerMsg(msgLocation, selectedRequest){
   await data[msgLocation][schema.actionStatus].add(namedNode(schema.ActivateAction));
   await data[msgLocation][schema.target].add(namedNode(selectedRequest.url));
   await data[msgLocation][schema.creator].add(namedNode(selectedRequest.webid));
+  await data[msgLocation][requestDataControllerGlobal].add(namedNode(selectedRequest.webid));
   const currentDateTime = new Date(Date.now())
   await data[msgLocation][schema.dateCreated].add(literal(currentDateTime.toISOString(), "http://www.w3.org/2001/XMLSchema#dateTime"));
   await data[selectedRequest.url][schema.actionStatus].add(namedNode(schema.ActivateAction));
@@ -69,6 +119,26 @@ async function sendTriggerMsg(msgLocation, selectedRequest){
 }
 //*** Research sends trigger msg to server (END) ***//
 
+//*** Participant sends feedback msg to researcher (START) ***//
+async function sendFeedbackMsg(feedback_request_ID, feedback_researcher_webid, feedback_participant_webid, feedback_text){
+
+  // Create a new message ttl file in inbox
+  const feedbackMsgLocation = feedback_researcher_webid.split("profile/card#")[0]+"inbox/"+feedback_request_ID.split("#")[1]+".ttl";
+  data[feedbackMsgLocation].put()
+  // Create the message content
+  let random_sub = '';
+  for(i=0; i<19; ++i) random_sub += Math.floor(Math.random() * 10);
+
+  await data[random_sub][rdf.type].add(namedNode(schema.Message));
+  await data[random_sub][schema.text].add(literal(feedback_text));
+  await data[random_sub][schema.about].add(namedNode(feedback_request_ID));
+  await data[random_sub][schema.sender].add(namedNode(feedback_participant_webid));
+  await data[random_sub][schema.recipient].add(namedNode(feedback_researcher_webid));
+  const currentDateTime = new Date(Date.now())
+  await data[random_sub][schema.dateSent].add(literal(currentDateTime.toISOString(), "http://www.w3.org/2001/XMLSchema#dateTime"));
+  return "Got it! Your feedback message has been sent to the researchers pod inbox!"
+}
+//*** Participant sends feedback msg to researcher (END) ***//
 
 // ****** Log In and Log Out (START) *********//
 async function getWebId() {
@@ -279,6 +349,7 @@ async function addNote(profileHead, addedTableDict, notesList) {
   newDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
   
   newDataElement.addRef(schema.creator, fetchProfile);
+  newDataElement.addRef(requestDataControllerGlobal, fetchProfile);
 
   for (let i=0; i<addedTableDict.length; i++){
     let predicateItem = addedTableDict[i].Predicate
@@ -372,7 +443,8 @@ async function getRequestList(fetchProfile) {
   /* 1. Check if a Document tracking our notes already exists. */
   const publicTypeIndexRef = profile.getRef(solid.publicTypeIndex);
   const publicTypeIndex = await fetchDocument(publicTypeIndexRef); 
-  const requestListEntryList = publicTypeIndex.findSubjects(solid.forClass, "http://schema.org/AskAction");//schema.TextDigitalDocument
+  // const requestListEntryList = publicTypeIndex.findSubjects(solid.forClass, "http://schema.org/AskAction");//schema.TextDigitalDocument
+  const requestListEntryList = publicTypeIndex.findSubjects(solid.forClass, requestPersonalDataHandlingGlobal)
 
   if (requestListEntryList.length > 0) {
     for (let i=0;i<requestListEntryList.length;i++){
@@ -404,7 +476,8 @@ async function initialiseRequestList(profile, typeIndex) {
   const typeRegistration = typeIndex.addSubject();
   typeRegistration.addRef(rdf.type, solid.TypeRegistration)
   typeRegistration.addRef(solid.instance, requestList.asRef())
-  typeRegistration.addRef(solid.forClass, "http://schema.org/AskAction")
+  // typeRegistration.addRef(solid.forClass, "http://schema.org/AskAction")
+  typeRegistration.addRef(solid.forClass, requestPersonalDataHandlingGlobal)
   await typeIndex.save([ typeRegistration ]);
 
   // And finally, return our newly created (currently empty) notes Document:
@@ -436,20 +509,50 @@ async function addRequest(fetchProfile, content, requestList) {
     var newDataElement = requestList.addSubject();
     // Indicate that the Subject is a schema:dataFeedElement:
     newDataElement.addRef(rdf.type, "http://schema.org/AskAction");
+    newDataElement.addRef(rdf.type, requestPersonalDataHandlingGlobal);
     // Set the Subject's `schema:text` to the actual note contents:
     // Store the date the note was created (i.e. now):
     
     // Use the schema as you want 
     newDataElement.addRef(schema.creator, fetchProfile);
-    if (content.purpose) {newDataElement.addString("http://schema.org/purpose", content.purpose);}
-    if (content.data) {
-      for (let i=0; i<content.data.length; i++){
-        newDataElement.addRef(schema.DataFeedItem, content.data[i]);
+    newDataElement.addRef(requestDataControllerGlobal, fetchProfile);
+
+    if (content.purposeClass) {
+      for (let i=0; i<content.purposeClass.length; i++){
+        newDataElement.addRef(requestPurposeClassGlobal, content.purposeClass[i]);
       } 
     }
-    if (content.period) {newDataElement.addDateTime(schema.endDate, content.period);}
-    if (content.numInstance) {newDataElement.addInteger("http://schema.org/collectionSize", parseInt(content.numInstance));}
-    if (content.model) {newDataElement.addString("http://schema.org/algorithm", content.model);}
+    if (content.purpose) {newDataElement.addString(requestPurposeLabelGlobal, content.purpose);}
+
+    if (content.personalDataCategory) {
+      for (let i=0; i<content.personalDataCategory.length; i++){
+        newDataElement.addRef(requestDataCategoryGlobal, content.personalDataCategory[i]);
+      } 
+    }
+
+    // if (content.ontology) {
+    //   for (let i=0; i<content.ontology.length; i++){
+    //     newDataElement.addRef(requestOntologyGlobal, content.ontology[i]);
+    //   } 
+    // }
+    if (content.data) {
+      for (let i=0; i<content.data.length; i++){
+        newDataElement.addRef(requestDataElementGlobal, content.data[i]);
+      } 
+    }
+    if (content.period) {newDataElement.addDateTime(requestExpiryGlobal, content.period);}
+    if (content.numInstance) {newDataElement.addInteger(requestCollectionSizeGlobal, parseInt(content.numInstance));}
+    
+    if (content.dataProcessingCategory) {
+      for (let i=0; i<content.dataProcessingCategory.length; i++){
+        newDataElement.addRef(requestDataProcessGlobal, content.dataProcessingCategory[i]);
+      } 
+    }
+    
+    if (content.model) {newDataElement.addString(requestAnalysisLogicGlobal, content.model);}
+    if (content.consequence) {newDataElement.addString(requestConsequenceGlobal, content.consequence);}
+    // if (content.recipient) {newDataElement.addString(requestRecipientGlobal, content.recipient);}
+
     const createdDate = new Date(Date.now())
     newDataElement.addDateTime(schema.dateCreated, createdDate);
 
@@ -467,7 +570,7 @@ async function addRequest(fetchProfile, content, requestList) {
     newRegisterRecord.addString(schema.validIn, encodeBase64(signature));
     
     await fetchRegisterLinkFile.save([newRegisterRecord])
-    return "Thank you for posting a new data request!";
+    return "Thank you for posting a new data request! You can find the RDF file of the request in the public/request.ttl in your SOLID pod";
   };
 }
 // *** Read and create data request (END) *** //
@@ -490,16 +593,37 @@ function saveRequestLocally(newDataElement, content, fetchProfile, createdDate){
 
   const subject = newDataElement.asRef(); // `<${}> <${}> <${}>.\n`
   let requestTripleString = `<${subject}> <${rdf.type}> <http://schema.org/AskAction>.`;
-  requestTripleString += `<${subject}> <http://schema.org/algorithm> ${content.model}.`;
-  requestTripleString += `<${subject}> <http://schema.org/collectionSize> ${content.numInstance}.`;
+  requestTripleString += `<${subject}> <${rdf.type}> ${requestPersonalDataHandlingGlobal}.`;
+  // requestTripleString += `<${subject}> ${requestRecipientGlobal} ${content.recipient}.`;
+  requestTripleString += `<${subject}> ${requestAnalysisLogicGlobal} ${content.model}.`;
+  requestTripleString += `<${subject}> ${requestCollectionSizeGlobal} ${content.numInstance}.`;
   requestTripleString += `<${subject}> <${schema.creator}> <${fetchProfile}>.`;
+  requestTripleString += `<${subject}> <${requestDataControllerGlobal}> <${fetchProfile}>.`;
   // requestTripleString += `<${subject}> <${schema.dateCreated}> ${formatTime(createdDate)}.`; //${createdDate.toString().split(" (")[0]}
   // requestTripleString += `<${subject}> <${schema.endDate}> ${formatTime(content.period)}.`;//${content.period.toString().split(" (")[0]}
   requestTripleString += `<${subject}> <http://schema.org/purpose> ${content.purpose}.`;
   if (content.data) {
-    const sort_content_data = content.data.sort()
+    let sort_content_data = content.data.sort()
     for (let i=0; i<content.data.length; i++){
-      requestTripleString += `<${subject}> <${schema.DataFeedItem}> <${sort_content_data[i]}>.`;
+      requestTripleString += `<${subject}> <${requestDataElementGlobal}> <${sort_content_data[i]}>.`;
+    } 
+  }
+  if (content.purposeClass) {
+    let sort_purposeClass = content.purposeClass.sort()
+    for (let i=0; i<content.purposeClass.length; i++){
+      requestTripleString += `<${subject}> <${requestPurposeClassGlobal}> <${sort_purposeClass[i]}>.`;
+    } 
+  }
+  if (content.personalDataCategory) {
+    let sort_personalDataCategory = content.personalDataCategory.sort()
+    for (let i=0; i<content.personalDataCategory.length; i++){
+      requestTripleString += `<${subject}> <${requestDataCategoryGlobal}> <${sort_personalDataCategory[i]}>.`;
+    } 
+  }
+  if (content.dataProcessingCategory) {
+    let sort_dataProcessingCategory = content.dataProcessingCategory.sort()
+    for (let i=0; i<content.dataProcessingCategory.length; i++){
+      requestTripleString += `<${subject}> <${requestDataProcessGlobal}> <${sort_dataProcessingCategory[i]}>.`;
     } 
   }
   // console.log(requestTripleString)
@@ -522,7 +646,8 @@ async function getParticipateList(fetchProfile) {
   /* 1. Check if a Document tracking our notes already exists. */
   const privateTypeIndexRef = profile.getRef(solid.privateTypeIndex);
   const privateTypeIndex = await fetchDocument(privateTypeIndexRef); 
-  const participateListEntryList = privateTypeIndex.findSubjects(solid.forClass, "http://schema.org/JoinAction");//schema.TextDigitalDocument
+  // const participateListEntryList = privateTypeIndex.findSubjects(solid.forClass, joinActionGlobal);//schema.TextDigitalDocument
+  const participateListEntryList = privateTypeIndex.findSubjects(solid.forClass, joinConsentGlobal)
 
   /* 2. If it doesn't exist, create it. */
   if (participateListEntryList.length == 0) {
@@ -559,7 +684,8 @@ async function initialiseParticipateList(profile, typeIndex) {
   const typeRegistration = typeIndex.addSubject();
   typeRegistration.addRef(rdf.type, solid.TypeRegistration)
   typeRegistration.addRef(solid.instance, participateList.asRef())
-  typeRegistration.addRef(solid.forClass, schema.JoinAction)
+  typeRegistration.addRef(solid.forClass, joinActionGlobal)
+  typeRegistration.addRef(solid.forClass, joinConsentGlobal)
   await typeIndex.save([ typeRegistration ]);
 
   // And finally, return our newly created (currently empty) notes Document:
@@ -568,18 +694,18 @@ async function initialiseParticipateList(profile, typeIndex) {
 
 
 // Add participation record to the file 
-async function addParticipation(fetchProfile, requestList, participateRequestId, participateList, AccessControlList, collectionSize, endDate, participate_period, privacyOption) {
+async function addParticipation(fetchProfile, requestList, participateRequestId, participateList, AccessControlList, collectionSize, endDate, participate_period, data_recipient, privacyOption) {
   // get the number of responses (participants)
-  const responseSize = requestList.findSubjects(rdf.type, schema.JoinAction).length;
+  const responseSize = requestList.findSubjects(rdf.type, joinConsentGlobal).length;
   // the current date
   const responseDate = new Date(Date.now());
   // get the webIDs of participants
-  const responseUser = participateList.findSubjects(schema.participant, fetchProfile);
+  const responseUser = participateList.findSubjects(joinDataSubjectGlobal, fetchProfile);
   let responseUserExisted = false;
 
   // check if the participant already responded to the data request
   for (let i =0;i<responseUser.length;i++){
-    if (responseUser[i].getRef("http://schema.org/RsvpResponseYes") == participateRequestId){
+    if (responseUser[i].getRef(joinConsentNoticeGlobal) == participateRequestId){
       responseUserExisted = true;
     }
   }
@@ -602,20 +728,29 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
             if (privateKey.length==0){
               alert("Cannot find valid credential. Please register first!")
             }else{
-
+              let expiry_single = "https://schema.org/False"
+              if (new Date(Date.now())>endDate){
+                let expiry_single = "https://schema.org/True"
+              }
               // add participate record to participation.ttl
               const newParticipateDataElement = participateList.addSubject();
-              newParticipateDataElement.addRef(rdf.type, schema.JoinAction);
+              newParticipateDataElement.addRef(rdf.type, joinActionGlobal);
+              newParticipateDataElement.addRef(rdf.type, joinConsentGlobal);
 
-              newParticipateDataElement.addRef(schema.participant, fetchProfile);
-              newParticipateDataElement.addRef("http://schema.org/RsvpResponseYes", participateRequestId);
-              newParticipateDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
-              newParticipateDataElement.addDateTime(schema.endDate, participate_period);
+              newParticipateDataElement.addRef(joinDataSubjectGlobal, fetchProfile);
+              newParticipateDataElement.addRef(joinConsentNoticeGlobal, participateRequestId);
+              newParticipateDataElement.addDateTime(joinDataCreatedGlobal, new Date(Date.now()));
+              newParticipateDataElement.addDateTime(joinhasProvisionTimeGlobal, new Date(Date.now()));
+              newParticipateDataElement.addRef(joinhasProvisionMethodGlobal, "https://sunchang0124.github.io/dist/participate.html");
+              newParticipateDataElement.addDateTime(joinhasWithdrawalTimeGlobal, participate_period);
+              newParticipateDataElement.addRef(joinDataRecipientGlobal, data_recipient);
+              newParticipateDataElement.addRef(joinhasExpiryGlobal, expiry_single);
+              newParticipateDataElement.addDateTime(joinhasExpiryTimeGlobal, endDate);
 
 
               // add participate record to Pod Server's request-response file 
               const registerRequestResponseFileURL = registerParticipationFolder + participateRequestId.split('#')[1] + ".ttl";
-
+              
               /* 1. Check if a participation register list already exists. */
               const registerIndex = await fetchDocument(registerIndexRef); 
               const registerIndexEntryList = registerIndex.getSubject(registerRequestResponseFileURL).getRef(rdf.type);
@@ -632,56 +767,38 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
               
               // 3. If it exists, add participation record in registerParticipation.ttl
               const addSubjectID =  newParticipateDataElement.asRef().split('#')[1];
-              await data[registerRequestResponseFileURL+'#'+addSubjectID][rdf.type].add(namedNode(schema.JoinAction));
-              await data[registerRequestResponseFileURL+'#'+addSubjectID][schema.participant].add(namedNode(fetchProfile));
-              await data[registerRequestResponseFileURL+'#'+addSubjectID]["http://schema.org/RsvpResponseYes"].add(namedNode(participateRequestId));
+              await data[registerRequestResponseFileURL+'#'+addSubjectID][rdf.type].add(namedNode(joinActionGlobal));
+              await data[registerRequestResponseFileURL+'#'+addSubjectID][rdf.type].add(namedNode(joinConsentGlobal));
+              await data[registerRequestResponseFileURL+'#'+addSubjectID][joinDataSubjectGlobal].add(namedNode(fetchProfile));
+              await data[registerRequestResponseFileURL+'#'+addSubjectID][joinConsentNoticeGlobal].add(namedNode(participateRequestId));
               const currentDateTime = new Date(Date.now())
-              await data[registerRequestResponseFileURL+'#'+addSubjectID][schema.dateCreated].add(literal(currentDateTime.toISOString(), "http://www.w3.org/2001/XMLSchema#dateTime"));
-              await data[registerRequestResponseFileURL+'#'+addSubjectID][schema.endDate].add(literal(participate_period.toISOString(), "http://www.w3.org/2001/XMLSchema#dateTime"));
+              await data[registerRequestResponseFileURL+'#'+addSubjectID][joinDataCreatedGlobal].add(literal(currentDateTime.toISOString(), "http://www.w3.org/2001/XMLSchema#dateTime"));
+              await data[registerRequestResponseFileURL+'#'+addSubjectID][joinhasProvisionTimeGlobal].add(literal(currentDateTime.toISOString(), "http://www.w3.org/2001/XMLSchema#dateTime"));
+              await data[registerRequestResponseFileURL+'#'+addSubjectID][joinhasProvisionMethodGlobal].add(namedNode("https://sunchang0124.github.io/dist/participate.html"));
+              await data[registerRequestResponseFileURL+'#'+addSubjectID][joinhasWithdrawalTimeGlobal].add(literal(participate_period.toISOString(), "http://www.w3.org/2001/XMLSchema#dateTime"));
+              await data[registerRequestResponseFileURL+'#'+addSubjectID][joinDataRecipientGlobal].add(namedNode(data_recipient));
+              await data[registerRequestResponseFileURL+'#'+addSubjectID][joinhasExpiryGlobal].add(namedNode(expiry_single));
+              await data[registerRequestResponseFileURL+'#'+addSubjectID][joinhasExpiryTimeGlobal].add(namedNode("http://www.w3.org/2001/XMLSchema#dateTime"));
                               
               const signature = sign.detached(decodeUTF8(participateRequestId.split('#')[1]), privateKey);
+ 
               await data[registerRequestResponseFileURL+'#'+addSubjectID][schema.validIn].add(literal(encodeBase64(signature)));
-
+           
               await participateList.save([newParticipateDataElement]);
-
+         
               // add viewer access to the requester automatically (Users have to give control access to the application)
               const newRequestAccessControl= AccessControlList.addSubject("Read");
               // const responserWebId = requestList.getSubject(participateRequestId).getRef(schema.creator);
 
               newRequestAccessControl.addRef(rdf.type, acl.Authorization);
-              newRequestAccessControl.addRef(acl.accessTo, "healthrecord.ttl");
+              newRequestAccessControl.addRef(acl.accessTo, dataFileName);
               newRequestAccessControl.addRef(acl.agent, podServerURL); // Give Pod Server/Provider access to read data (responserWebId)
               newRequestAccessControl.addRef(acl.mode, acl.Read);
               newRequestAccessControl.addDateTime(schema.endDate, participate_period);
-          
-              const AccessControlSuccess = await AccessControlList.save([newRequestAccessControl]);
+      
+              await AccessControlList.save([newRequestAccessControl]);
             }
           }
-          /************ PAUSE ************
-          // if it is privacy-preserving analysis
-          else if (privacyOption[0]){
-            // add participate record to request.ttl
-            const newRequestDataElement = requestList.addSubject();
-            newRequestDataElement.addRef(rdf.type, schema.JoinAction);
-            
-            // leave the requested data item directly without IDs
-            newRequestDataElement.addInteger(privacyOption[1], privacyOption[2]);
-            newRequestDataElement.addRef("http://schema.org/RsvpResponseYes", participateRequestId);
-            newRequestDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
-        
-            await requestList.save([newRequestDataElement]);
-
-            // add participate record to participation.ttl
-            const newParticipateDataElement = participateList.addSubject();
-            newParticipateDataElement.addRef(rdf.type, schema.JoinAction);
-
-            newParticipateDataElement.addRef(schema.participant, fetchProfile);
-            newParticipateDataElement.addRef("http://schema.org/RsvpResponseYes", participateRequestId);
-            newParticipateDataElement.addDateTime(schema.dateCreated, new Date(Date.now()));
-        
-            await participateList.save([newParticipateDataElement]);
-          }
-          ******/
           return true;
 
         }else{alert("Participation end date has to be later than today.")};
@@ -691,53 +808,56 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
 }
 // *** Create a participation record (END) ***//
 
+async function getRecommender(input){
 
-// *** Search URI from text (START) ***//
-function searchTermsNamespaces(resultObj, addTripleSearch, nameSpace){
-  const getAllKeys = Object.keys(nameSpace);
-      getAllKeys.forEach(function(keyName) {
-        if (keyName.indexOf(addTripleSearch) !== -1) {
-          resultObj.push({Text:keyName, FoundURI:nameSpace[keyName]})
-        }
-      });
-  return resultObj
+  let response = await fetch("http://data.bioontology.org/recommender?input="+input+"&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
+  let data = await response.json();
+  let item = [];
+
+  for (let i=0; i<5; i++){
+    item.push({Text: data[i]['ontologies'][0]['acronym'], FoundURI: data[i]['ontologies'][0]['@id'], Score:data[i]['evaluationScore']}) 
+  }
+  return item;
+}
+
+async function getDataLabels(input){
+
+  let response = await fetch("http://data.bioontology.org/search?q="+input+"&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
+  let data = await response.json();
+  let item = data['collection'][0]['prefLabel']
+  return item;
 }
 
 // Namespace Suggestions
-searchIcons.forEach(function(each_search){
-  each_search.addEventListener("click", function(e){
-    e.preventDefault();
-    const styles = e.currentTarget.classList;
-    const tables = document.querySelectorAll(".table");
+// searchIcons.forEach(function(each_search){
+//   each_search.addEventListener("click", function(e){
+//     e.preventDefault();
+//     const styles = e.currentTarget.classList;
+//     const tables = document.querySelectorAll(".table");    
 
-    if (styles.contains('predicateSuggestion')){
-      var addTripleSearch = document.getElementById("addTriplePredicate").value;
-    }else if (styles.contains('objectSuggestion')){
-      var addTripleSearch = document.getElementById("addTripleObject").value;
-    }
+//     if (styles.contains('predicateSuggestion')){
+//       var addTripleSearch = document.getElementById("addTriplePredicate").value;
+//     }else if (styles.contains('objectSuggestion')){
+//       var addTripleSearch = document.getElementById("addTripleObject").value;
+//     }
 
-    // GET the URL from the text user put
-    var resultObj = [];
-    if (addTripleSearch){
-      let namespaceList = [schema, foaf, rdf, skos, dc, dct]
-      for (let i=0; i<namespaceList.length; i++){
-        let nameSpace = namespaceList[i];
-        resultObj = searchTermsNamespaces(resultObj, addTripleSearch, nameSpace);
-      }
-    }
-
-    if (resultObj.length==0){
-      resultObj.push({Text:addTripleSearch, FoundURI:"Sorry, we couldn't find matched identifiers(URI)."})
-    }
-
-    tables.forEach(function(table){
-      if (table.classList.contains("searchTable")){
-        printTable(table, resultObj, false);
-      }
-    });
-
-  });
-});
+//     // GET the URL from the text user put
+//     var resultObj = [];
+//     if (addTripleSearch){
+//       var ontologyDataElement = document.getElementById("input_ontologyDataElement").value;
+//       getUsers(addTripleSearch, ontologyDataElement, "searchPurpose").then(resultObj => {
+//         if (resultObj.length==0){
+//           resultObj.push({Text:addTripleSearch, FoundURI:"Sorry, we couldn't find matched identifiers(URI)."})
+//         }
+//         tables.forEach(function(table){
+//           if (table.classList.contains("searchTable")){
+//             printTable(table, resultObj, false);
+//           }
+//         });
+//       });
+//     }
+//   });
+// });
 // *** Search URI from text (END) ***//
 
 
@@ -745,6 +865,10 @@ searchIcons.forEach(function(each_search){
 function writeAllRequest(profile, requestTriples, fetchRequest){
   let requestContent = Object();  
   let dataElementList = []
+  let purposeClassList = []
+  let personalDataCategoryList = []
+  let dataProcessingCategoryList = []
+  // let ontologyList = []
 
   for (let i = 0; i < requestTriples.length; i++){
     if (requestTriples[i].subject.id === fetchRequest){
@@ -754,19 +878,36 @@ function writeAllRequest(profile, requestTriples, fetchRequest){
       requestContent.image = profile.getRef(vcard.hasPhoto);
 
       requestContent.url = fetchRequest;
-      if (requestTriples[i].predicate.id === "http://schema.org/purpose"){
+      if (requestTriples[i].predicate.id === requestPurposeClassGlobal){
+        purposeClassList.push(requestTriples[i].object.value);}
+        // requestContent.purposeClass = "Class of purpose: "+ requestTriples[i].object.value;}
+      if (requestTriples[i].predicate.id === requestPurposeLabelGlobal){
         requestContent.purpose = "Purpose: "+ requestTriples[i].object.value;}
-      if (requestTriples[i].predicate.id === schema.endDate){
+      if (requestTriples[i].predicate.id === requestDataCategoryGlobal){
+        personalDataCategoryList.push(requestTriples[i].object.value);}
+      if (requestTriples[i].predicate.id === requestDataProcessGlobal){
+        dataProcessingCategoryList.push(requestTriples[i].object.value);}
+      // if (requestTriples[i].predicate.id === requestOntologyGlobal){
+      //   ontologyList.push(requestTriples[i].object.value);}
+      if (requestTriples[i].predicate.id === requestExpiryGlobal){
         requestContent.period = "End date: " + requestTriples[i].object.value;}
-      if (requestTriples[i].predicate.id === "http://schema.org/algorithm"){
+      if (requestTriples[i].predicate.id === requestAnalysisLogicGlobal){
         requestContent.analysis = "Analysis: " + requestTriples[i].object.value;}
-      if (requestTriples[i].predicate.id === "http://schema.org/collectionSize"){
+      if (requestTriples[i].predicate.id === requestCollectionSizeGlobal){
         requestContent.numInstance = requestTriples[i].object.value;}
-      if (requestTriples[i].predicate.id === "http://schema.org/DataFeedItem"){
-        dataElementList.push(requestTriples[i].object.value);
+      // if (requestTriples[i].predicate.id === requestRecipientGlobal){
+      //   requestContent.recipient = "Data Recipient: " + requestTriples[i].object.value;}
+      if (requestTriples[i].predicate.id === requestConsequenceGlobal){
+        requestContent.consequence = "Consequence of data process: " + requestTriples[i].object.value;}
+      if (requestTriples[i].predicate.id === requestDataElementGlobal){
+        dataElementList.push(requestTriples[i].object.value);}
     }
-  }
-  requestContent.dataElement = "Requested data: "+dataElementList;} // "Requested data: "+ 
+    requestContent.purposeClass = "Class of purpose: " + purposeClassList;
+    requestContent.personalDataCategory = "Personal data categories: " + personalDataCategoryList;
+    requestContent.dataProcessingCategory = "Data processing categories: " + dataProcessingCategoryList;
+    // requestContent.ontology = ontologyList;
+    requestContent.dataElement = "Requested data: "+dataElementList;
+  } 
   if (Object.keys(requestContent).length < 2){
     requestContent = false;
   }
@@ -776,16 +917,23 @@ function writeAllRequest(profile, requestTriples, fetchRequest){
 /**************************
  * Generate request cards *
  **************************/
-async function generateCards(requestContentList, userRole){
+async function generateCards(requestContentList, userRole, session, participant_basket){
     
   var cleanContainer = document.getElementById("Container");
   cleanContainer.innerHTML = "";
   
   const div_cardsContainer = document.createElement("div");
-  div_cardsContainer.className = "ui cards";
+  div_cardsContainer.className = "ui fluid fixed cards";
   div_cardsContainer.id = "cardsContainer";
   document.getElementById('Container').appendChild(div_cardsContainer);
-  
+
+  let purpose_label = {CommercialInterest:"red", 
+                        ResearchAndDevelopment: "blue", 
+                        Security: "teal", 
+                        ServiceOptimization: "orange", 
+                        ServicePersonalization: "green", 
+                        ServiceProvision: "yellow", 
+                        LegalObligation: "purple"}
 
   for(var i=0; i < requestContentList.length; i++){
 
@@ -794,6 +942,13 @@ async function generateCards(requestContentList, userRole){
     div_card.className = "card";
     div_card.id = "cardID"+i.toString();
     document.getElementById('cardsContainer').appendChild(div_card);
+
+    const div_label = document.createElement("a");
+    let purpose_label_content = requestContentList[i].purposeClass.split(",")[0].toString().split(": ")[1].split("#")[1];
+    div_label.className = "ui " + purpose_label[purpose_label_content] +" ribbon label";
+    div_label.id = "labelID"+i.toString();
+    div_label.textContent =  purpose_label_content;
+    document.getElementById('cardID'+i.toString()).appendChild(div_label);
   
     const div_content = document.createElement("a");
     div_content.href = requestContentList[i].url; 
@@ -819,16 +974,115 @@ async function generateCards(requestContentList, userRole){
     div_meta.textContent = requestContentList[i].organization; //"IDS";
     document.getElementById('contentID'+i.toString()).appendChild(div_meta);
   
+    const div_classPurpose = document.createElement("div");
+    div_classPurpose.className = "description";
+    div_classPurpose.id = "classPurposeID"+i.toString();
+    div_classPurpose.textContent = "Class of purpose: "; //equestContentList[i].purposeClass; //"Purpose Class";
+    document.getElementById('contentID'+i.toString()).appendChild(div_classPurpose);
+
+
+    const listofpurpose = requestContentList[i].purposeClass.split(",");
+    let href_classpurpose = document.createElement("a");
+    let link_classpurpose = document.createTextNode(listofpurpose[0].toString().split(": ")[1].split("#")[1]);
+    href_classpurpose.appendChild(link_classpurpose);
+    href_classpurpose.href = listofpurpose[0].toString().split(": ")[1];
+    document.getElementById('classPurposeID'+i.toString()).appendChild(href_classpurpose);
+
+    
+    for (let itr=1;itr<3;itr++){
+      if (itr<listofpurpose.length){
+        document.getElementById('classPurposeID'+i.toString()).appendChild(document.createElement("div"));
+        let href_classpurpose_1 = document.createElement("a");
+
+        let link_classpurpose = document.createTextNode(listofpurpose[itr].toString().split("#")[1]);
+        href_classpurpose_1.appendChild(link_classpurpose);
+        href_classpurpose_1.href = listofpurpose[itr];
+        document.getElementById('classPurposeID'+i.toString()).appendChild(href_classpurpose_1);
+      }
+      if (listofpurpose.length>3 && itr==2){
+        const div_endPurpose = document.createElement("div");
+        div_endPurpose.textContent = "... ... " + (listofpurpose.length-3).toString() + " more classes of purpose";
+        document.getElementById('classPurposeID'+i.toString()).appendChild(div_endPurpose);
+      }
+    }
+
+
+
+
+
     const div_description = document.createElement("div");
     div_description.className = "description";
     div_description.id = "descriptionID"+i.toString();
     div_description.textContent = requestContentList[i].purpose; //"Purpose";
     document.getElementById('contentID'+i.toString()).appendChild(div_description);
 
+    const div_personalDataCategory = document.createElement("div");
+    div_personalDataCategory.className = "description";
+    div_personalDataCategory.id = "div_personalDataCategoryID"+i.toString();
+    div_personalDataCategory.textContent = "Personal Data Category: "; //requestContentList[i].personalDataCategory; //"Personal Data Category";
+    document.getElementById('contentID'+i.toString()).appendChild(div_personalDataCategory);
+
+
+    const listofpersonalDataCategory = requestContentList[i].personalDataCategory.split(",");
+    let href_personalDataCategory = document.createElement("a");
+    let link_personalDataCategory = document.createTextNode(listofpersonalDataCategory[0].toString().split(": ")[1].split("#")[1]);
+    href_personalDataCategory.appendChild(link_personalDataCategory);
+    href_personalDataCategory.href = listofpersonalDataCategory[0].toString().split(": ")[1];
+    document.getElementById('div_personalDataCategoryID'+i.toString()).appendChild(href_personalDataCategory);
+
+    
+    for (let itr=1;itr<3;itr++){
+      if (itr<listofpersonalDataCategory.length){
+        document.getElementById('div_personalDataCategoryID'+i.toString()).appendChild(document.createElement("div"));
+        let href_personalDataCategory_1 = document.createElement("a");
+        let link_personalDataCategory = document.createTextNode(listofpersonalDataCategory[itr].toString().split("#")[1]);
+        href_personalDataCategory_1.appendChild(link_personalDataCategory);
+        href_personalDataCategory_1.href = listofpersonalDataCategory[itr];
+        document.getElementById('div_personalDataCategoryID'+i.toString()).appendChild(href_personalDataCategory_1);
+      }
+      if (listofpersonalDataCategory.length>3 && itr==2){
+        const div_endDataCategory = document.createElement("div");
+        div_endDataCategory.textContent = "... ... " + (listofpersonalDataCategory.length-3).toString() + " more personal data categories"; 
+        document.getElementById('div_personalDataCategoryID'+i.toString()).appendChild(div_endDataCategory);
+      }
+    }
+
+
+    const div_dataProcessingCategory = document.createElement("div");
+    div_dataProcessingCategory.className = "description";
+    div_dataProcessingCategory.id = "div_dataProcessingCategoryID"+i.toString();
+    div_dataProcessingCategory.textContent = "Data Processing Category: "; //requestContentList[i].dataProcessingCategory; //"Data Processing Category";
+    document.getElementById('contentID'+i.toString()).appendChild(div_dataProcessingCategory);
+
+
+    const listofdataProcessingCategory = requestContentList[i].dataProcessingCategory.split(",");
+    let href_dataProcessingCategory = document.createElement("a");
+    let link_dataProcessingCategory = document.createTextNode(listofdataProcessingCategory[0].toString().split(": ")[1].split("#")[1]);
+    href_dataProcessingCategory.appendChild(link_dataProcessingCategory);
+    href_dataProcessingCategory.href = listofdataProcessingCategory[0].toString().split(": ")[1];
+    document.getElementById('div_dataProcessingCategoryID'+i.toString()).appendChild(href_dataProcessingCategory);
+
+    
+    for (let itr=1;itr<3;itr++){
+      if (itr<listofdataProcessingCategory.length){
+        document.getElementById('div_dataProcessingCategoryID'+i.toString()).appendChild(document.createElement("div"));
+        let href_dataProcessingCategory_1 = document.createElement("a");
+        let link_dataProcessingCategory = document.createTextNode(listofdataProcessingCategory[itr].toString().split("#")[1]);
+        href_dataProcessingCategory_1.appendChild(link_dataProcessingCategory);
+        href_dataProcessingCategory_1.href = listofdataProcessingCategory[itr];
+        document.getElementById('div_dataProcessingCategoryID'+i.toString()).appendChild(href_dataProcessingCategory_1);
+      }
+      if (listofdataProcessingCategory.length>3 && itr==2){
+        const div_endDataProcessing = document.createElement("div");
+        div_endDataProcessing.textContent = "... ... " + (listofdataProcessingCategory.length-3).toString() + " more data elements"; //"period";
+        document.getElementById('div_dataProcessingCategoryID'+i.toString()).appendChild(div_endDataProcessing);
+      }
+    }
+
+
     // Request data elements
     
     const div_dataElement = document.createElement("div");
-    div_dataElement.style = 'word-wrap: break-word';
     div_dataElement.className = "description";
     div_dataElement.id = "dataElementID"+i.toString();
     div_dataElement.textContent = "Requested data: " //requestContentList[i].dataElement; //"Data Element";
@@ -836,7 +1090,9 @@ async function generateCards(requestContentList, userRole){
 
     const listofElement = requestContentList[i].dataElement.split(",");
     let href_dataElement_0 = document.createElement("a");
-    let linkText = document.createTextNode(listofElement[0].toString().split(": ")[1]);
+    let displayLabel = await getDataLabels(listofElement[0].toString().split(": ")[1].split("/").pop())
+      // let linkText = document.createTextNode(listofElement[0].toString().split(": ")[1].split("//")[1]);
+    let linkText = document.createTextNode(displayLabel)
     href_dataElement_0.appendChild(linkText);
     href_dataElement_0.href = listofElement[0].toString().split(": ")[1];
     document.getElementById('contentID'+i.toString()).appendChild(href_dataElement_0);
@@ -846,7 +1102,10 @@ async function generateCards(requestContentList, userRole){
       if (itr<listofElement.length){
         document.getElementById('contentID'+i.toString()).appendChild(document.createElement("div"));
         let href_dataElement = document.createElement("a");
-        let linkText = document.createTextNode(listofElement[itr].toString());
+
+        let displayLabel = await getDataLabels(listofElement[itr].toString().split("/").pop())
+        // let linkText = document.createTextNode(listofElement[itr].toString().split("//")[1]);
+        let linkText = document.createTextNode(displayLabel)
         href_dataElement.appendChild(linkText);
         href_dataElement.href = listofElement[itr];
         document.getElementById('contentID'+i.toString()).appendChild(href_dataElement);
@@ -876,41 +1135,212 @@ async function generateCards(requestContentList, userRole){
     div_analysis.textContent = requestContentList[i].analysis; //"analysis";
     document.getElementById('contentID'+i.toString()).appendChild(div_analysis);
 
+    const div_consequence = document.createElement("div");
+    div_consequence.className = "description";
+    div_consequence.id = "consequenceID"+i.toString();
+    div_consequence.textContent = requestContentList[i].consequence; //"consequence";
+    document.getElementById('contentID'+i.toString()).appendChild(div_consequence);
+
+    // const div_recipient = document.createElement("div");
+    // div_recipient.className = "description";
+    // div_recipient.id = "recipientID"+i.toString();
+    // div_recipient.textContent = requestContentList[i].recipient; //"recipient";
+    // document.getElementById('contentID'+i.toString()).appendChild(div_recipient);
+
     const div_extra = document.createElement("div");
     div_extra.className = "extra content";
     div_extra.id = "extraID"+i.toString();
     document.getElementById('cardID'+i.toString()).appendChild(div_extra);
 
     if (userRole === "participant"){
-      const div_forDate = document.createElement("div");
-      div_forDate.className = "ui transparent input";
-      div_forDate.id = "forDate"+i.toString();
-      document.getElementById('extraID'+i.toString()).appendChild(div_forDate);
 
-      const div_untilDate = document.createElement("input");
-      div_untilDate.type = "date";
-      div_untilDate.id = "untilDate"+i.toString();
-      document.getElementById("forDate"+i.toString()).appendChild(div_untilDate);
+      if (session){
+        const haveData = participant_basket.some(r=> listofElement.includes(r))
+        console.log(haveData)
 
-      const div_buttons = document.createElement("div");
-      div_buttons.className = "ui two buttons";
-      div_buttons.id = "buttonsID"+i.toString();
-      document.getElementById('extraID'+i.toString()).appendChild(div_buttons);
+        if (haveData){
 
-      const div_redButton = document.createElement("button");
-      div_redButton.className = "ui red Decline button answer index_"+i.toString();
-      div_redButton.id = "redButtonID"+i.toString();
-      div_redButton.textContent = "Decline";
-      document.getElementById('buttonsID'+i.toString()).appendChild(div_redButton);
+          const div_untilDate_des = document.createElement("div");
+          div_untilDate_des.className = "description";
+          div_untilDate_des.id = "untilDate_des"+i.toString();
+          div_untilDate_des.textContent = "Withdrawal Date: "
+          document.getElementById('extraID'+i.toString()).appendChild(div_untilDate_des);
+
+          const div_forDate = document.createElement("div");
+          div_forDate.className = "ui transparent input";
+          div_forDate.id = "forDate"+i.toString();
+          document.getElementById('untilDate_des'+i.toString()).appendChild(div_forDate);
+
+          const div_untilDate = document.createElement("input");
+          div_untilDate.type = "date";
+          div_untilDate.id = "untilDate"+i.toString();
+          document.getElementById("forDate"+i.toString()).appendChild(div_untilDate);
+
+          const div_data_recipient_des = document.createElement("div");
+          div_data_recipient_des.className = "description";
+          div_data_recipient_des.id = "data_recipient_des"+i.toString();
+          div_data_recipient_des.textContent = "Data Recipient: "
+          document.getElementById('extraID'+i.toString()).appendChild(div_data_recipient_des);
+
+          const div_data_recipient = document.createElement("select");
+          div_data_recipient.className = "ui dropdown";
+          div_data_recipient.id = "data_recipient"+i.toString();
+          document.getElementById("data_recipient_des"+i.toString()).appendChild(div_data_recipient);
+          const div_option_1 = document.createElement("option");
+          div_option_1.value = "https://chang.inrupt.net/profile/card#me";
+          div_option_1.textContent = "Institute of Data Science";
+          document.getElementById("data_recipient"+i.toString()).appendChild(div_option_1);
+          const div_option_2 = document.createElement("option");
+          div_option_2.value = "https://chang1025.solidcommunity.net/profile/card#me";
+          div_option_2.textContent = "Maastricht University";
+          document.getElementById("data_recipient"+i.toString()).appendChild(div_option_2);
+
+          const div_buttons = document.createElement("div");
+          div_buttons.className = "ui two buttons";
+          div_buttons.id = "buttonsID"+i.toString();
+          document.getElementById('extraID'+i.toString()).appendChild(div_buttons);
+        
+          const div_redButton = document.createElement("button");
+          div_redButton.className = "ui red toggle Decline button answer index_"+i.toString();
+          div_redButton.id = "redButtonID"+i.toString();
+          div_redButton.textContent = "Decline";
+          document.getElementById('buttonsID'+i.toString()).appendChild(div_redButton);
+        
+          const div_greenButton = document.createElement("button");
+          div_greenButton.className = "ui green toggle Approve button answer index_"+i.toString();
+          div_greenButton.id = "greenButtonID"+i.toString();
+          div_greenButton.textContent = "Approve";
+          document.getElementById('buttonsID'+i.toString()).appendChild(div_greenButton);
+        }else{
+        
+          const div_NoData = document.createElement("h4");
+          // div_NoData.className = "content";
+          div_NoData.id = "div_NoData_des"+i.toString();
+          div_NoData.textContent = "Requested data is not detected in your pod!"
+          document.getElementById('extraID'+i.toString()).appendChild(div_NoData);
+          
+          const div_NoData_buttons = document.createElement("div");
+          div_NoData_buttons.className = "ui grey NoDataFeedback button index_"+i.toString();
+          div_NoData_buttons.id = "noData_buttonsID"+i.toString();
+          div_NoData_buttons.textContent = "Send a message to the researcher."
+          document.getElementById('extraID'+i.toString()).appendChild(div_NoData_buttons);
+
+          // document.getElementById("feedback_modal").id = "feedback_modalID"+i.toString(); 
+          console.log(1)
+          const div_feedback_modal = document.createElement("div");
+          div_feedback_modal.className = "ui modal index_"+i.toString();
+          div_feedback_modal.id = "feedback_modalID"+i.toString();
+          document.getElementById("modal_component").appendChild(div_feedback_modal);
+          
+          console.log(document.getElementById("feedback_modalID"+i.toString()))
+
+          const div_close_icon = document.createElement("i");
+          div_close_icon.className = "close icon";
+          document.getElementById("feedback_modalID"+i.toString()).appendChild(div_close_icon); 
+
+          const div_header = document.createElement("div");
+          div_header.className = "header";
+          div_header.textContent = "Send a message to the researcher";
+          document.getElementById("feedback_modalID"+i.toString()).appendChild(div_header); 
+
+          const div_content = document.createElement("div");
+          div_content.className = "feedback content";
+          div_content.id = "feedback_contentID"+i.toString();
+          document.getElementById("feedback_modalID"+i.toString()).appendChild(div_content); 
+
+          const div_form = document.createElement("div");
+          div_form.className = "ui form";
+          div_form.id = "formID"+i.toString();
+          document.getElementById("feedback_contentID"+i.toString()).appendChild(div_form); 
+
+          // const div_extension = document.createElement("grammarly-extension");
+          // div_extension.style = "position: absolute; top: 0px; left: 0px; pointer-events: none;";
+          // div_extension.className ="cGcvT";
+          // div_extension.id = "formID"+i.toString();
+          // document.getElementById("formID"+i.toString()).appendChild(div_extension); 
     
-      const div_greenButton = document.createElement("button");
-      div_greenButton.className = "ui green Approve button answer index_"+i.toString();
-      div_greenButton.id = "greenButtonID"+i.toString();
-      div_greenButton.textContent = "Approve";
-      document.getElementById('buttonsID'+i.toString()).appendChild(div_greenButton);
+          const div_header4 = document.createElement("h4");
+          div_header4.className ="ui dividing header";
+          div_header4.id = "header4ID"+i.toString();
+          div_header4.textContent = "Topic of your message:";
+          document.getElementById("formID"+i.toString()).appendChild(div_header4); 
+
+          const div_feedback_dropdown = document.createElement("select");
+          div_feedback_dropdown.className = "ui fluid dropdown index_"+i.toString();
+          div_feedback_dropdown.id = "dropdownID"+i.toString();
+          document.getElementById("header4ID"+i.toString()).appendChild(div_feedback_dropdown);  
+
+          const div_feedback_option_1 = document.createElement("option");
+          div_feedback_option_1.value = 0; 
+          div_feedback_option_1.textContent = "I think I have the data elements you are requesting but it is not detected. ";
+          document.getElementById("dropdownID"+i.toString()).appendChild(div_feedback_option_1);  
+
+          const div_feedback_option_2 = document.createElement("option");
+          div_feedback_option_2.value = 1;
+          div_feedback_option_2.textContent = "I want to give feedback to your request.";
+          document.getElementById("dropdownID"+i.toString()).appendChild(div_feedback_option_2);  
+
+          const div_feedback_message_field = document.createElement("div");
+          div_feedback_message_field.className = "field";
+          div_feedback_message_field.id = "feedback_fieldID"+i.toString();
+          document.getElementById("formID"+i.toString()).appendChild(div_feedback_message_field);
+
+          const div_label = document.createElement("label");
+          div_label.textContent = "Message";
+          document.getElementById("feedback_fieldID"+i.toString()).appendChild(div_label);
+
+          const div_feedback_textarea = document.createElement("textarea");
+          div_feedback_textarea.id = "feedback_from_participantID"+i.toString();
+          document.getElementById("feedback_fieldID"+i.toString()).appendChild(div_feedback_textarea);
+          
+          const div_action = document.createElement("div");
+          div_action.className = "actions";
+          div_action.id = "feedback_button_fieldID"+i.toString();
+          document.getElementById("feedback_modalID"+i.toString()).appendChild(div_action);
+
+          const div_sendFeedback_button = document.createElement("div");
+          div_sendFeedback_button.className = "ui green sendFeedback answer button listen index_"+i.toString();
+          div_sendFeedback_button.id = "sendFeedback_buttonsID"+i.toString();
+          div_sendFeedback_button.textContent = "Send";
+          document.getElementById("feedback_button_fieldID"+i.toString()).appendChild(div_sendFeedback_button);    
+
+          $(document)
+          .ready(function() {
+            let modal_para = ".ui.modal.index_"+i.toString();
+            let button_para = ".NoDataFeedback.button.index_"+i.toString();
+            $(modal_para)
+              .modal('attach events', button_para, 'show')
+            ;
+          });
+
+          
+          // const feebback_btns = document.querySelectorAll("sendFeedback.feedback.button")
+          // feebback_btns.forEach(function(each_feedback_btn){
+          //   each_feedback_btn.addEventListener("click", function(e){
+          //     e.preventDefault();
+          //     const style = e.currentTarget.classList
+          //     const index = style.value.split(' ').pop().split('_')[1];
+          //     console.log(style.value)
+              
+          //     getWebId().then(participant_webid => {
+          //       console.log(document.getElementById("feedback_from_participantID"+i.toString()))
+          //       const feedback_text = document.getElementById("feedback_from_participantID"+i.toString()).value;
+          //       console.log(3)
+          //       const selectedRequest = requestContentList[index]; 
+          //       sendFeedbackMsg(selectedRequest.url, selectedRequest.webid, participant_webid, feedback_text).then(response=>{alert(response)});
+          //     }).catch((err)=> {alert(err.message);});
+          //   });
+          // });
+        }
+      }else{
+        const div_disabled_buttons = document.createElement("div");
+        div_disabled_buttons.className = "ui fluid disabled buttons";
+        div_disabled_buttons.id = "disabled_buttonsID"+i.toString();
+        div_greenButton.textContent = "Want to participate? Please login.";
+        document.getElementById('extraID'+i.toString()).appendChild(div_disabled_buttons);
+      }
+      
     }else{
-      // console.log(registerParticipationFolder+requestContentList[i].url.split('#')[1]+".ttl")
-      // console.log(requestContentList[i].url)
       var dataRequested_numInstance = Number(requestContentList[i].numInstance)
       await getTriplesObjects(registerParticipationFolder+requestContentList[i].url.split('#')[1]+".ttl", null, null, true).then(getTriples => {
 
@@ -982,7 +1412,7 @@ async function generateCards(requestContentList, userRole){
 // *** Write and generate requests to cards (END) ***//
 
 // *** Plot cards on the webpage (START) ***//
-async function plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, option, userRole){
+async function plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, option, userRole, session, participant_basket){
   var requestContentList = [];
 
   if (option === "fromPageEntrance"){
@@ -1003,7 +1433,7 @@ async function plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, option, 
     if (singleRequest){requestContentList.push(singleRequest);}
   }
 
-  requestContentList = await generateCards(requestContentList, userRole);
+  requestContentList = await generateCards(requestContentList, userRole, session, participant_basket);
 
   var loader = document.getElementById("loader");
   loader.style.display = "none";
@@ -1020,15 +1450,16 @@ async function plotCardsOnPage(webIdDoc, profileWebID, findAllSubjects, option, 
 async function fetchRegisterList(fetchRegisterRecord){
   
   const registerRecordSubjects = fetchRegisterRecord.findSubjects();
+  
   const requestURIList = [];
   const includedRequest = [];
   const requestWebIdDocList = [];
   const requestProfileIdList = [];
   for (let i=0; i<registerRecordSubjects.length; i++){
     const registeredSingleRequestURL = registerRecordSubjects[i].getRef(schema.recordedAs);
-
     if (!includedRequest.includes(registeredSingleRequestURL)){
       const registeredSingleRequesterWebId = registerRecordSubjects[i].getRef(schema.creator);
+
       try{
         const fetchEachRequest = await fetchDocument(registeredSingleRequestURL);
         requestURIList.push({fetchedRequestID:registeredSingleRequestURL, fetchedRequestDoc:fetchEachRequest});
@@ -1061,24 +1492,27 @@ function respondToRequest(answer_btns, requestContentList){
       if (style.contains('Approve')) {
         const fetchParticipateRequestId = selectedRequest.url;
         const participate_period = new Date(document.getElementById("untilDate"+index).value);
-        
+        const data_recipient = document.getElementById("data_recipient"+index).value;
+
         getWebId().then(webId => {
           fetchRequestURL(fetchParticipateRequestId).then(fetchedRequestListRef=> {
-            const collectionSize = fetchedRequestListRef.getSubject(fetchParticipateRequestId).getInteger(schema.collectionSize);
-            const endDate = fetchedRequestListRef.getSubject(fetchParticipateRequestId).getDateTime(schema.endDate);
-            const requestModel = fetchedRequestListRef.getSubject(fetchParticipateRequestId).getString("http://schema.org/algorithm");
-  
+            const collectionSize = fetchedRequestListRef.getSubject(fetchParticipateRequestId).getInteger(requestCollectionSizeGlobal);
+            const endDate = fetchedRequestListRef.getSubject(fetchParticipateRequestId).getDateTime(requestExpiryGlobal);
+            const requestModel = fetchedRequestListRef.getSubject(fetchParticipateRequestId).getString(requestAnalysisLogicGlobal);
+            
             getParticipateList(webId).then(fetchedParticipateListRef=> {
               // if the data request is in the regular analysis mode
               if (requestModel){
-                const aclDocument = webId.split("profile")[0] + "private/healthrecord.ttl.acl"
+                const aclDocument = webId.split("profile")[0] + "private/" + dataFileName + ".acl"
                 fetchRequestURL(aclDocument).then(AccessControlList => {
-                  addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, AccessControlList, collectionSize, endDate, participate_period, false).then(success=> { //requestModel.includes('Privacy')
+                  
+                  addParticipation(webId, fetchedRequestListRef, fetchParticipateRequestId, fetchedParticipateListRef, AccessControlList, collectionSize, endDate, participate_period, data_recipient, false).then(success=> { //requestModel.includes('Privacy')
+                    
                     if (success){
-                      alert("Your participation is recorded. Access to your 'healthrecord.ttl' is granted for this research request.'");
+                      alert("Your participation is recorded. Access to your " + dataFileName + " is granted for this research request.");
                     }
-                  });
-                }).catch(()=> {alert("If you have not given this SOLID App 'Control' Access, please turn on specific sharing for your 'healthrecord.ttl' file .");});
+                  }).catch((err)=> {alert(err.message);});;
+                }).catch(()=> {alert("If you have not given this SOLID App 'Control' Access, please turn on specific sharing for your " + dataFileName + " file .");});
               }
               /*********************** PAUSE ************************
               // if the data request is in the privacy-preserving mode 
@@ -1112,10 +1546,70 @@ function respondToRequest(answer_btns, requestContentList){
         const requestID = selectedRequest.url.split("#")[1];
         sendTriggerMsg(registerTriggerMessageFolder+requestID+'.ttl', selectedRequest).then(response=>{alert(response)});
       }
+      else if (style.contains('sendFeedback')){
+        // const feebback_btns = document.querySelectorAll("sendFeedback.feedback.button")
+        // feebback_btns.forEach(function(each_feedback_btn){
+        //   each_feedback_btn.addEventListener("click", function(e){
+            // e.preventDefault();
+            // const style = e.currentTarget.classList
+            // const index = style.value.split(' ').pop().split('_')[1];
+        console.log(style.value)
+        
+        getWebId().then(participant_webid => {
+          console.log(document.getElementById("feedback_from_participantID"+index))
+          const feedback_text = document.getElementById("feedback_from_participantID"+index).value;
+          console.log(3)
+          const selectedRequest = requestContentList[index]; 
+          sendFeedbackMsg(selectedRequest.url, selectedRequest.webid, participant_webid, feedback_text).then(response=>{alert(response)});
+        }).catch((err)=> {alert(err.message);});
+          // });
+        // });
+      }
     });
   });
 }
 // *** Users respond to data request: approve/decline (END) ***//
+
+
+
+async function dataElement_getRecommender(input){
+
+	let response = await fetch("http://data.bioontology.org/recommender?input="+input+"&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
+	let data = await response.json();
+	let item = [];
+	let asInputOntology = "";
+
+	for (let i=0; i<data.length; i++){
+	item.push({Text: data[i]['ontologies'][0]['acronym'], FoundURI: data[i]['ontologies'][0]['@id'], Score:data[i]['evaluationScore']});
+	asInputOntology += data[i]['ontologies'][0]['acronym'];
+	if (i != data.length-1){
+		asInputOntology += ","; 
+	}
+	}
+	return asInputOntology //item
+}
+
+async function dataElement_getAnnotator(asInputOntology, input){
+
+	let response = await fetch("https://data.bioontology.org/annotator?text="+input+"&ontologies="+asInputOntology+"&longest_only=false&exclude_numbers=false&whole_word_only=true&exclude_synonyms=false&expand_class_hierarchy=true&class_hierarchy_max_level=999&mapping=all&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
+  let data = await response.json();
+	let asInputAnnotator = [];
+
+
+	for (let i=0; i<data.length; i++){
+	  asInputAnnotator.push({URI: data[i]['annotatedClass']['@id'], Ont:data[i]['annotatedClass']['links']["ontology"].split("/ontologies/")[1]});
+  }
+	return asInputAnnotator;
+}
+
+
+async function dataElement_getUsers(annotator, input){
+
+		let response = await fetch("http://data.bioontology.org/search?q="+ input +"&ontology="+annotator['Ont']+"&subtree_root_id="+annotator['URI']+"&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
+    let data = await response.json();
+  
+	return data;
+}
 
 
 // *** Button rections (START) ***//
@@ -1134,7 +1628,7 @@ btns.forEach(function(btn) {
           tokenMessage.setAttribute("style", "word-wrap: break-word");
           tokenMessage.textContent = response;
         });
-      });
+      }).catch(error => alert("To register on TIDAL, please login to your SOLID Account first!"));;
     }
 
     // Get blockchain user and passwords
@@ -1151,12 +1645,11 @@ btns.forEach(function(btn) {
           if (result.includes("token")){
             const bcToken = result.substring(result.lastIndexOf('{"token":"') + 10, result.lastIndexOf('"')); 
             tokenMessage.textContent = " Please save the token and it lasts for 5 hours. \n Your token is " + bcToken;
-            console.log(result)
+            // console.log(result)
           }else{
             alert("Username or password is incorrect!")
           }
-        })
-        .catch(error => alert('error', error));
+        }).catch(error => alert('error', error));
     }
 
     // Fetch data from the files all triples or objects
@@ -1295,19 +1788,77 @@ btns.forEach(function(btn) {
       });
     }
 
-    else if (styles.contains('addRequestedData')) {
-      const addRequestedDataMessage = document.getElementById("addRequestedDataMessage");
-      const addRequestedDataList = addRequestedDataMessage.textContent.split('\r\n');
-      addRequestedDataMessage.setAttribute('style', 'white-space: pre;');
+    else if (styles.contains('recommender')) {
+      const recommenderService = document.getElementById("input_recommender");
+      const recommender_button = document.getElementById("recommender button");
+      // const addRequestedDataList = addRequestedDataMessage.textContent.split('\r\n');
+      recommenderService.setAttribute('style', 'white-space: pre;');
 
-      const request_data = document.getElementById("addTriplePredicate").value;
+      const recommender_content = document.getElementById("input_purpose").value;
+      if (recommender_content.length>5){
+        recommender_button.className = "ui icon loading button recommender listen"
+        getRecommender(recommender_content).then(request_data_list=>{
+
+          // request_data_list.pop()
+          for (let i=0; i<5; i++){
+            recommenderService.textContent += "Ontology: " + request_data_list[i]['Text'] + ", Score:" +request_data_list[i]['Score']+ '\r\n';
+          }
+          ecommender_button.className = "ui icon button recommender listen"
+        });
+      }else{alert("Please give enought to get the recommendations")}
       
-      if (!addRequestedDataList.includes(request_data) && request_data.length>0){
-        addRequestedDataList.push(request_data);
-        addRequestedDataMessage.textContent += request_data + '\r\n';
+      
+    }
+
+    else if (styles.contains('addRequestedData')) {
+
+      if (!document.getElementById("loader") && document.getElementById("input_purpose").value.length>0){
+        const loader = document.createElement("div");
+        loader.className = "ui active inline loader";
+        loader.id = "loader"
+        document.getElementById('input_addedField').appendChild(loader);
       }
-      const request_data_list = addRequestedDataMessage.textContent.split('\r\n')
-      request_data_list.pop()
+
+      if (document.getElementById("loader").className == "ui active inline loader"){
+        dataElement_getRecommender(document.getElementById("input_purpose").value).then(asInputOntology => {
+          let dataCategoryInput = document.getElementById("input_personaldatacategory").value.split(',');
+          let annotatorInput = '';
+          if (dataCategoryInput.length > 1){
+            for (let n=0;n<dataCategoryInput.length;n++){
+              annotatorInput = annotatorInput + ' ' + dataCategoryInput[n]
+            }
+            
+          }else{
+            annotatorInput = document.getElementById(document.getElementById("input_personaldatacategory").value).textContent;
+            console.log(annotatorInput);
+          }
+          
+          dataElement_getAnnotator(asInputOntology, annotatorInput).then(asInputAnnotator=>{
+            let item = [];
+            console.log(asInputAnnotator.length)
+            asInputAnnotator.map(annotator=>{
+              dataElement_getUsers(annotator, document.getElementById("addTriplePredicate").value).then(data=>{
+                if (data['collection'].length>0){
+                  item.push(data['collection']);
+                  console.log(data['collection'])
+                }
+              }).catch(e=>{})
+            })
+          })
+        })
+        const addRequestedDataMessage = document.getElementById("input_addRequestedDataMessage");
+        const addRequestedDataList = addRequestedDataMessage.textContent.split('\r\n');
+        addRequestedDataMessage.setAttribute('style', 'white-space: pre;');
+  
+        const request_data = document.getElementById("addTriplePredicate").value;
+        
+        if (!addRequestedDataList.includes(request_data) && request_data.length>0){
+          addRequestedDataList.push(request_data);
+          addRequestedDataMessage.textContent += request_data + '\r\n';
+        }
+        const request_data_list = addRequestedDataMessage.textContent.split('\r\n')
+        request_data_list.pop()
+      }
     }
 
     // Submit a new data request 
@@ -1315,19 +1866,46 @@ btns.forEach(function(btn) {
       getWebId().then(webId => {
 
         const fetchProfile = webId
+
+        const request_classPurpose = document.getElementById("input_classPurpose").value.split(',');
+
         const request_purpose = document.getElementById("input_purpose").value;
 
-        const addRequestedDataMessage = document.getElementById("addRequestedDataMessage");
+        const request_personalDataCategory = document.getElementById("input_personaldatacategory").value.split(',');
+
+        const addRequestedDataMessage = document.getElementById("input_addRequestedDataMessage");
         const request_data = addRequestedDataMessage.textContent.split('\r\n')
         request_data.pop()
         
         const request_period = new Date(document.getElementById("input_period").value);
         const request_numInstance = document.getElementById("input_numInstance").value;
-        const request_obj = document.getElementById("input_model")
-        const request_model = request_obj.options[request_obj.selectedIndex].text;
+        
+        // const request_ontology = document.getElementById("input_ontologyDataElement").value.split(',');
+
+        const request_dataProcessingCategory = document.getElementById("input_dataProcessingCategory").value.split(',');
+
+        const request_selectModelObj = document.getElementById("input_model")
+        const request_model = request_selectModelObj.options[request_selectModelObj.selectedIndex].value;
+        
+        const request_consequence = document.getElementById("input_consequence").value;
+
+        // const request_selectRecipientObj = document.getElementById("data_recipient")
+        // const request_recipient = request_selectRecipientObj.options[request_selectRecipientObj.selectedIndex].value;
+
         const request_input_token = document.getElementById("input_token").value;
     
-        const addRequestContent = {'purpose':request_purpose, 'data':request_data, 'period':request_period, 'numInstance':request_numInstance, 'model':request_model, 'token':request_input_token};
+        const addRequestContent = {'purposeClass':request_classPurpose,
+                                    'purpose':request_purpose, 
+                                    'personalDataCategory':request_personalDataCategory,
+                                    // 'ontology': request_ontology,
+                                    'data':request_data, 
+                                    'period':request_period, 
+                                    'numInstance':request_numInstance, 
+                                    'dataProcessingCategory': request_dataProcessingCategory,
+                                    'model':request_model, 
+                                    'consequence': request_consequence,
+                                    // 'recipient':request_recipient,
+                                    'token':request_input_token};
         getRequestList(fetchProfile).then(fetchedRequestListRef => {
           addRequest(fetchProfile, addRequestContent, fetchedRequestListRef).then(outcome => {
             alert(outcome);
@@ -1343,7 +1921,8 @@ btns.forEach(function(btn) {
       // if the user give the webID (will query all request of this person made)
       if (fetchRequest.slice(-15).includes('profile/card')){
         getRequestList(fetchRequest).then(fetchedRequestListRef => {
-          const findAllSubjects = fetchedRequestListRef.findSubjects(rdf.type, "http://schema.org/AskAction");
+          // const findAllSubjects = fetchedRequestListRef.findSubjects(rdf.type, "http://schema.org/AskAction");
+          const findAllSubjects = fetchedRequestListRef.findSubjects(rdf.type, requestPersonalDataHandlingGlobal);
           const profileWebID = fetchRequest;
 
           fetchRequestURL(profileWebID).then(webIdDoc => {

@@ -35,6 +35,7 @@
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/sidebar.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/transition.css">
   <link rel="stylesheet" type="text/css" href="../semantic/dist/components/popup.css">
+  <link rel="stylesheet" type="text/css" href="../semantic/dist/components/dimmer.css">
 
       
   <style type="text/css">
@@ -138,9 +139,10 @@
   <script src="../semantic/dist/components/sidebar.js"></script>
   <script src="../semantic/dist/components/transition.js"></script>
   <script type="text/javascript" src="../semantic/dist/components/dropdown.js"></script>
+  <script src="../semantic/dist/components/modal.js"></script>
+  <script src="../semantic/dist/components/dimmer.js"></script>
 
   <script>
-  
   $(document)
     .ready(function() {
       // fix menu when passed
@@ -171,6 +173,37 @@
 
 </head>
 <body>
+<!-- Feedback Window -->
+<div id="modal_component"></div>
+<!-- <div class="ui modal" id="feedback_modal"> -->
+  <!-- <i class="close icon"></i>
+  <div class="header">
+    Send a message to the researcher
+  </div>
+  <div class="content">
+    <div class="ui form"><grammarly-extension data-grammarly-shadow-root="true" style="position: absolute; top: 0px; left: 0px; pointer-events: none;" class="cGcvT"></grammarly-extension>
+      <h4 class="ui dividing header" id= "feedback_type">Topic of your message: -->
+        <!-- <select class="ui fluid dropdown">
+          <option value="0">I think I have the data elements you are requesting but it is not detected. </option>
+          <option value="1">I want to give feedback to your request.</option>
+        </select> -->
+      <!-- </h4>
+      <div class="field" id="feedback_field">
+        <label>Message</label> -->
+        <!-- <textarea spellcheck="true" id="feedback_from_participant"></textarea> -->
+      <!-- </div> -->
+      <!-- <div class="field">
+        <div class="ui checkbox">
+          <input type="checkbox" checked="checked" name="contact-me" tabindex="0" class="hidden">
+          <label>It's okay to contact me.</label>
+        </div>
+      </div> -->
+    <!-- </div>
+  </div>
+  <div class="actions" id="feedback_button_field"> -->
+    <!-- <div class="ui green sendFeedback feedback button listen" id="sendFeedback_button">Send</div> -->
+  <!-- </div> -->
+<!-- </div> -->
 
 <!-- Following Menu -->
 <div class="ui large top fixed hidden menu">
@@ -288,7 +321,7 @@
     </div>
   </div>
 </div>
-<script src="main.js"></script>
 </body>
+<script src="main.js"></script>
 
 </html>
