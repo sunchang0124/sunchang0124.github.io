@@ -12,7 +12,7 @@
     "@rdfjs/data-model": "^1.1.2",
     "@solid/query-ldflex": "^2.11.2",
     "js-yaml": "^3.14.0",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^2.6.7",
     "rdf-namespaces": "^1.8.0",
     "solid-auth-client": "^2.4.1",
     "tripledoc": "^4.3.4",
