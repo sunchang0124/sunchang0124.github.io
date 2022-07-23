@@ -811,7 +811,7 @@ async function addParticipation(fetchProfile, requestList, participateRequestId,
 
 async function getRecommender(input){
 
-  let response = await fetch("http://data.bioontology.org/recommender?input="+input+"&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
+  let response = await fetch("https://data.bioontology.org/recommender?input="+input+"&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
   let data = await response.json();
   let item = [];
 
@@ -823,7 +823,7 @@ async function getRecommender(input){
 
 async function getDataLabels(input){
 
-  let response = await fetch("http://data.bioontology.org/search?q="+input+"&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
+  let response = await fetch("https://data.bioontology.org/search?q="+input+"&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
   let data = await response.json();
   let item = data['collection'][0]['prefLabel']
   return item;
@@ -1575,7 +1575,7 @@ function respondToRequest(answer_btns, requestContentList){
 
 async function dataElement_getRecommender(input){
 
-	let response = await fetch("http://data.bioontology.org/recommender?input="+input+"&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
+	let response = await fetch("https://data.bioontology.org/recommender?input="+input+"&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
 	let data = await response.json();
 	let item = [];
 	let asInputOntology = "";
@@ -1606,7 +1606,7 @@ async function dataElement_getAnnotator(asInputOntology, input){
 
 async function dataElement_getUsers(annotator, input){
 
-		let response = await fetch("http://data.bioontology.org/search?q="+ input +"&ontology="+annotator['Ont']+"&subtree_root_id="+annotator['URI']+"&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
+		let response = await fetch("https://data.bioontology.org/search?q="+ input +"&ontology="+annotator['Ont']+"&subtree_root_id="+annotator['URI']+"&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
     let data = await response.json();
   
 	return data;
