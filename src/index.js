@@ -821,12 +821,15 @@ async function getRecommender(input){
   return item;
 }
 
-async function getDataLabels(input){
-
-  let response = await fetch("https://data.bioontology.org/search?q="+input+"&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
-  let data = await response.json();
-  let item = data['collection'][0]['prefLabel']
-  return item;
+async function getDataLabels(input) {
+    try {
+        let response = await fetch("https://data.bioontology.org/search?q=" + input + "&apikey=21646475-b5a0-4e92-8aba-d9fcfcfea388");
+        let data = await response.json();
+        let item = data['collection'][0]['prefLabel']
+        return item;
+    } catch (error) {
+        console.log(error)
+    }
 }
 
 // Namespace Suggestions
